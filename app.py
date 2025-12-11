@@ -1,6 +1,6 @@
 """
-ArgusAI - Fraud Detection & Data Science Workflow Platform
-A comprehensive dashboard for fraud detection, data science workflow, and case management
+ArgusAI - Fraud Detection & Monitoring Platform
+A comprehensive dashboard for fraud detection, feature monitoring, model monitoring, and case management
 """
 
 import streamlit as st
@@ -54,8 +54,8 @@ with st.sidebar:
 
     selected = option_menu(
         menu_title="Navigation",
-        options=["Data Science Workflow", "Rule Editor", "Case Management", "Model Deployment"],
-        icons=["graph-up", "list-check", "search", "cpu"],
+        options=["Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Model Deployment"],
+        icons=["bar-chart-line", "speedometer2", "list-check", "search", "cpu"],
         menu_icon="cast",
         default_index=0,
     )
@@ -64,16 +64,21 @@ with st.sidebar:
     st.markdown("### About")
     st.info("""
         ArgusAI provides a complete platform for:
-        - End-to-end data science workflows
+        - Feature drift & data quality monitoring
+        - Model performance & fraud KPI tracking
         - Rule-based fraud detection
         - Case investigation & management
         - Model deployment & inference
     """)
 
 # Main content
-if selected == "Data Science Workflow":
-    from src.pages import ds_workflow
-    ds_workflow.show()
+if selected == "Feature Monitoring":
+    from src.pages import feature_monitoring
+    feature_monitoring.show()
+
+elif selected == "Model Monitoring":
+    from src.pages import model_monitoring_detailed
+    model_monitoring_detailed.show()
 
 elif selected == "Rule Editor":
     from src.pages import rule_editor
