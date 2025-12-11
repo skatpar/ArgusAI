@@ -17,7 +17,7 @@ from src.utils.data_generator import generate_fraud_data
 
 
 def show():
-    st.markdown('<p class="main-header">📊 Feature Monitoring</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Feature Monitoring</p>', unsafe_allow_html=True)
     st.markdown("Monitor feature drift, data quality, and feature health")
 
     # Initialize session state
@@ -470,7 +470,7 @@ def show_feature_statistics():
 
         # Statistics summary
         st.markdown("---")
-        st.markdown(f"#### 📊 {selected_feature} - Summary Statistics")
+        st.markdown(f"#### {selected_feature} - Summary Statistics")
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -806,7 +806,7 @@ def show_feature_importance_tracking():
             'Initial': f"{first_imp:.3f}",
             'Current': f"{last_imp:.3f}",
             'Change %': f"{change:+.2f}%",
-            'Trend': '📈' if change > 0 else '📉'
+            'Trend': '' if change > 0 else ''
         })
 
     change_df = pd.DataFrame(change_data)

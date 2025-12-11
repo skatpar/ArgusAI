@@ -26,20 +26,20 @@ warnings.filterwarnings('ignore')
 
 
 def show():
-    st.markdown('<p class="main-header">📊 Data Science Workflow</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Data Science Workflow</p>', unsafe_allow_html=True)
     st.markdown("Complete end-to-end workflow for fraud detection modeling")
 
     # Create tabs for different workflow stages
     tabs = st.tabs([
         "📥 Data Extraction",
         "🧹 Data Cleaning",
-        "📈 EDA",
-        "⚙️ Feature Engineering",
-        "🎯 Feature Selection",
+        "EDA",
+        "⚙Feature Engineering",
+        "Feature Selection",
         "👥 Customer Profiling",
         "🔀 Train/Test Split",
-        "🤖 Model Building",
-        "📊 Model Evaluation",
+        "Model Building",
+        "Model Evaluation",
         "📋 Final Metrics"
     ])
 
@@ -126,18 +126,18 @@ def show_data_extraction():
         with st.spinner("Extracting data..."):
             if source == "Generate Sample Data":
                 st.session_state.df = generate_fraud_data(n_samples=n_samples, fraud_rate=fraud_rate/100)
-                st.success(f"✅ Successfully generated {len(st.session_state.df)} records!")
+                st.success(f"Successfully generated {len(st.session_state.df)} records!")
             elif source == "Upload CSV":
                 st.info("CSV upload will be available in the file uploader below")
             else:
                 st.session_state.df = generate_fraud_data(n_samples=n_samples, fraud_rate=fraud_rate/100)
-                st.success(f"✅ Successfully extracted {len(st.session_state.df)} records from database!")
+                st.success(f"Successfully extracted {len(st.session_state.df)} records from database!")
 
     if source == "Upload CSV":
         uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
         if uploaded_file is not None:
             st.session_state.df = pd.read_csv(uploaded_file)
-            st.success(f"✅ Successfully loaded {len(st.session_state.df)} records!")
+            st.success(f"Successfully loaded {len(st.session_state.df)} records!")
 
     if st.session_state.df is not None:
         st.markdown("---")
@@ -157,7 +157,7 @@ def show_data_extraction():
 
         st.dataframe(st.session_state.df.head(20), use_container_width=True)
 
-        st.markdown("#### 📊 Data Info")
+        st.markdown("#### Data Info")
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Data Types:**")
@@ -181,7 +181,7 @@ def show_data_cleaning():
     st.markdown("Clean and preprocess the extracted data")
 
     if st.session_state.df is None:
-        st.warning("⚠️ Please extract data first from the 'Data Extraction' tab")
+        st.warning("Please extract data first from the 'Data Extraction' tab")
         return
 
     df = st.session_state.df.copy()
@@ -237,7 +237,7 @@ def show_data_cleaning():
             st.session_state.df_cleaned = df
 
             st.success(f"""
-                ✅ Data cleaning completed!
+                Data cleaning completed!
                 - Original shape: {original_shape}
                 - Cleaned shape: {df.shape}
                 - Rows removed: {original_shape[0] - df.shape[0]}
@@ -245,7 +245,7 @@ def show_data_cleaning():
 
     if st.session_state.df_cleaned is not None:
         st.markdown("---")
-        st.markdown("#### 📊 Cleaned Data Summary")
+        st.markdown("#### Cleaned Data Summary")
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -263,22 +263,22 @@ def show_data_cleaning():
 
 
 def show_eda():
-    st.markdown("### 📈 Exploratory Data Analysis")
+    st.markdown("### Exploratory Data Analysis")
     st.markdown("Analyze and visualize data patterns")
 
     df = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
 
     if df is None:
-        st.warning("⚠️ Please extract data first")
+        st.warning("Please extract data first")
         return
 
     # Summary Statistics
-    st.markdown("#### 📊 Summary Statistics")
+    st.markdown("#### Summary Statistics")
     st.dataframe(df.describe(), use_container_width=True)
 
     # Visualizations
     st.markdown("---")
-    st.markdown("#### 📉 Visualizations")
+    st.markdown("#### Visualizations")
 
     viz_type = st.selectbox(
         "Select visualization:",
@@ -372,13 +372,13 @@ def show_eda():
 
 
 def show_feature_engineering():
-    st.markdown("### ⚙️ Feature Engineering")
+    st.markdown("### ⚙Feature Engineering")
     st.markdown("Create and transform features for better model performance")
 
     df = st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df
 
     if df is None:
-        st.warning("⚠️ Please extract data first")
+        st.warning("Please extract data first")
         return
 
     st.markdown("#### Available Feature Engineering Operations")
@@ -397,7 +397,7 @@ def show_feature_engineering():
         create_ratios = st.checkbox("Ratio features", value=True)
         create_interactions = st.checkbox("Interaction features", value=False)
 
-    if st.button("⚙️ Create Features", type="primary"):
+    if st.button("⚙Create Features", type="primary"):
         with st.spinner("Engineering features..."):
             df_featured = create_features(
                 df.copy(),
@@ -414,7 +414,7 @@ def show_feature_engineering():
             new_features = set(df_featured.columns) - set(df.columns)
 
             st.success(f"""
-                ✅ Feature engineering completed!
+                Feature engineering completed!
                 - Original features: {len(df.columns)}
                 - New features created: {len(new_features)}
                 - Total features: {len(df_featured.columns)}
@@ -426,7 +426,7 @@ def show_feature_engineering():
 
     if st.session_state.df_featured is not None:
         st.markdown("---")
-        st.markdown("#### 📊 Feature Analysis")
+        st.markdown("#### Feature Analysis")
 
         df_featured = st.session_state.df_featured
 
@@ -453,14 +453,14 @@ def show_feature_engineering():
 
 
 def show_feature_selection():
-    st.markdown("### 🎯 Feature Selection")
+    st.markdown("### Feature Selection")
     st.markdown("Select the most important features for modeling")
 
     df = st.session_state.df_featured if st.session_state.df_featured is not None else \
          (st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df)
 
     if df is None:
-        st.warning("⚠️ Please extract data first")
+        st.warning("Please extract data first")
         return
 
     st.markdown("#### Feature Selection Methods")
@@ -472,7 +472,7 @@ def show_feature_selection():
 
     n_features = st.slider("Number of features to select:", 5, 50, 20)
 
-    if st.button("🎯 Select Features", type="primary"):
+    if st.button("Select Features", type="primary"):
         with st.spinner("Selecting features..."):
             numeric_features = df.select_dtypes(include=[np.number]).columns
             numeric_features = [col for col in numeric_features if col != 'is_fraud']
@@ -513,7 +513,7 @@ def show_feature_selection():
 
             st.session_state.selected_features = selected
 
-            st.success(f"✅ Selected {len(selected)} features using {method}")
+            st.success(f"Selected {len(selected)} features using {method}")
 
             # Visualization
             fig = px.bar(x=scores, y=selected, orientation='h',
@@ -534,7 +534,7 @@ def show_customer_profiling():
          (st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df)
 
     if df is None:
-        st.warning("⚠️ Please extract data first")
+        st.warning("Please extract data first")
         return
 
     # Customer-level aggregation
@@ -548,7 +548,7 @@ def show_customer_profiling():
                                     'std_amount', 'max_amount', 'fraud_count', 'fraud_rate']
 
         # Customer segments
-        st.markdown("#### 📊 Customer Segments")
+        st.markdown("#### Customer Segments")
 
         col1, col2, col3, col4 = st.columns(4)
 
@@ -623,7 +623,7 @@ def show_train_test_split():
          (st.session_state.df_cleaned if st.session_state.df_cleaned is not None else st.session_state.df)
 
     if df is None:
-        st.warning("⚠️ Please extract data first")
+        st.warning("Please extract data first")
         return
 
     col1, col2 = st.columns(2)
@@ -683,11 +683,11 @@ def show_train_test_split():
             st.session_state.y_test = y_test.reset_index(drop=True)
             st.session_state.feature_columns = selected_cols
 
-            st.success("✅ Data split completed!")
+            st.success("Data split completed!")
 
     if st.session_state.X_train is not None:
         st.markdown("---")
-        st.markdown("#### 📊 Split Summary")
+        st.markdown("#### Split Summary")
 
         col1, col2, col3, col4 = st.columns(4)
 
@@ -715,11 +715,11 @@ def show_train_test_split():
 
 
 def show_model_building():
-    st.markdown("### 🤖 Model Building & Training")
+    st.markdown("### Model Building & Training")
     st.markdown("Build and train machine learning models")
 
     if st.session_state.X_train is None or st.session_state.y_train is None:
-        st.warning("⚠️ Please split the data first in the 'Train/Test Split' tab")
+        st.warning("Please split the data first in the 'Train/Test Split' tab")
         return
 
     st.markdown("#### Select Models to Train")
@@ -741,7 +741,7 @@ def show_model_building():
         if train_gb:
             gb_estimators = st.slider("GB Trees:", 50, 500, 100, 50)
 
-    if st.button("🚀 Train Models", type="primary"):
+    if st.button("Train Models", type="primary"):
         if not (train_lr or train_rf or train_gb):
             st.error("Please select at least one model")
             return
@@ -777,14 +777,14 @@ def show_model_building():
             progress_bar.progress(models_trained / total_models)
 
         status_text.text("Training completed!")
-        st.success(f"✅ Successfully trained {len(st.session_state.models)} model(s)!")
+        st.success(f"Successfully trained {len(st.session_state.models)} model(s)!")
 
     if len(st.session_state.models) > 0:
         st.markdown("---")
         st.markdown("#### 📋 Trained Models")
 
         for model_name, model in st.session_state.models.items():
-            with st.expander(f"📊 {model_name}"):
+            with st.expander(f"{model_name}"):
                 col1, col2 = st.columns(2)
 
                 with col1:
@@ -812,11 +812,11 @@ def show_model_building():
 
 
 def show_model_evaluation():
-    st.markdown("### 📊 Model Evaluation")
+    st.markdown("### Model Evaluation")
     st.markdown("Evaluate model performance with detailed metrics")
 
     if len(st.session_state.models) == 0:
-        st.warning("⚠️ Please train models first in the 'Model Building' tab")
+        st.warning("Please train models first in the 'Model Building' tab")
         return
 
     # Select model to evaluate
@@ -828,7 +828,7 @@ def show_model_evaluation():
     y_pred_proba = model.predict_proba(st.session_state.X_test)[:, 1] if hasattr(model, 'predict_proba') else None
 
     # Metrics
-    st.markdown("#### 📈 Classification Metrics")
+    st.markdown("#### Classification Metrics")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -852,7 +852,7 @@ def show_model_evaluation():
 
     # Confusion Matrix
     st.markdown("---")
-    st.markdown("#### 🎯 Confusion Matrix")
+    st.markdown("#### Confusion Matrix")
 
     cm = confusion_matrix(st.session_state.y_test, y_pred)
 
@@ -868,7 +868,7 @@ def show_model_evaluation():
     # ROC Curve
     if y_pred_proba is not None:
         st.markdown("---")
-        st.markdown("#### 📉 ROC Curve")
+        st.markdown("#### ROC Curve")
 
         fpr, tpr, thresholds = roc_curve(st.session_state.y_test, y_pred_proba)
         auc = roc_auc_score(st.session_state.y_test, y_pred_proba)
@@ -899,7 +899,7 @@ def show_final_metrics():
     st.markdown("Comprehensive overview of all models and results")
 
     if len(st.session_state.models) == 0:
-        st.warning("⚠️ Please train models first")
+        st.warning("Please train models first")
         return
 
     # Collect metrics for all models
@@ -927,13 +927,13 @@ def show_final_metrics():
     metrics_df = pd.DataFrame(metrics_data)
 
     # Display metrics table
-    st.markdown("#### 📊 Model Comparison")
+    st.markdown("#### Model Comparison")
     st.dataframe(metrics_df.style.highlight_max(axis=0, subset=['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC']),
                 use_container_width=True)
 
     # Visualize comparison
     st.markdown("---")
-    st.markdown("#### 📈 Performance Comparison")
+    st.markdown("#### Performance Comparison")
 
     metric_to_plot = st.selectbox("Select metric:", ['Accuracy', 'Precision', 'Recall', 'F1-Score', 'ROC-AUC'])
 
@@ -945,7 +945,7 @@ def show_final_metrics():
 
     # Best model recommendation
     st.markdown("---")
-    st.markdown("#### 🏆 Best Model Recommendation")
+    st.markdown("#### Best Model Recommendation")
 
     if 'F1-Score' in metrics_df.columns:
         best_model_idx = metrics_df['F1-Score'].idxmax()
@@ -960,7 +960,7 @@ def show_final_metrics():
 
     # Dataset summary
     st.markdown("---")
-    st.markdown("#### 📊 Dataset Summary")
+    st.markdown("#### Dataset Summary")
 
     col1, col2, col3, col4 = st.columns(4)
 

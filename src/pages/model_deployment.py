@@ -18,7 +18,7 @@ sys.path.append('/home/user/ArgusAI')
 
 
 def show():
-    st.markdown('<p class="main-header">🚀 Model Deployment</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Model Deployment</p>', unsafe_allow_html=True)
     st.markdown("Deploy and manage models for real-time fraud detection")
 
     # Initialize session state
@@ -28,7 +28,7 @@ def show():
         st.session_state.inference_history = []
 
     # Create tabs
-    tabs = st.tabs(["📦 Model Registry", "Deploy Model", "Real-Time Inference",
+    tabs = st.tabs(["Model Registry", "Deploy Model", "Real-Time Inference",
                    "Model Monitoring", "Model Management"])
 
     with tabs[0]:
@@ -102,7 +102,7 @@ def initialize_deployed_models():
 
 
 def show_model_registry():
-    st.markdown("### 📦 Model Registry")
+    st.markdown("### Model Registry")
     st.markdown("Browse and manage trained models")
 
     deployed_models = st.session_state.deployed_models
@@ -184,21 +184,21 @@ def show_model_registry():
 
             with col3:
                 if model['status'] == 'Active':
-                    if st.button(f"⏸Deactivate", key=f"deactivate_{model['model_id']}"):
+                    if st.button(f"Deactivate", key=f"deactivate_{model['model_id']}"):
                         model['status'] = 'Inactive'
                         st.success("Model deactivated")
                 else:
-                    if st.button(f"▶Activate", key=f"activate_{model['model_id']}"):
+                    if st.button(f"Activate", key=f"activate_{model['model_id']}"):
                         model['status'] = 'Active'
                         st.success("Model activated")
 
             with col4:
-                if st.button(f"🗑Remove", key=f"remove_{model['model_id']}"):
+                if st.button(f"Remove", key=f"remove_{model['model_id']}"):
                     st.warning("Model removal (requires confirmation)")
 
     # Upload new model
     st.markdown("---")
-    st.markdown("#### ⬆Upload New Model")
+    st.markdown("#### Upload New Model")
 
     with st.expander("Upload Model", expanded=False):
         col1, col2 = st.columns(2)
@@ -258,7 +258,7 @@ def show_model_deployment():
                 monitoring = st.checkbox("Enable monitoring", value=True)
                 logging = st.checkbox("Enable detailed logging", value=True)
 
-            st.markdown("#### 🔧 Advanced Settings")
+            st.markdown("#### Advanced Settings")
 
             with st.expander("Advanced Configuration", expanded=False):
                 col1, col2 = st.columns(2)
@@ -352,7 +352,7 @@ def show_model_deployment():
 
         st.info("You can also deploy pre-trained models from the Model Registry")
 
-        if st.button("📦 Go to Model Registry"):
+        if st.button("Go to Model Registry"):
             st.info("Navigate to Model Registry tab")
 
 
@@ -910,7 +910,7 @@ def show_model_management():
 
     # Version history
     st.markdown("---")
-    st.markdown("#### 📜 Version History")
+    st.markdown("#### Version History")
 
     versions = pd.DataFrame({
         'Version': ['3.0', '2.1', '2.0', '1.5', '1.0'],
@@ -931,5 +931,5 @@ def show_model_management():
         rollback_version = st.selectbox("Select version to rollback to:", versions['Version'].tolist()[1:])
 
     with col2:
-        if st.button("⬅Rollback", type="secondary"):
+        if st.button("Rollback", type="secondary"):
             st.warning(f"Rollback to version {rollback_version} requires confirmation")

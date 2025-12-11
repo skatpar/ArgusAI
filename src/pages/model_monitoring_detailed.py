@@ -16,7 +16,7 @@ sys.path.append('/home/user/ArgusAI')
 
 
 def show():
-    st.markdown('<p class="main-header">🤖 Model Performance Monitoring</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Model Performance Monitoring</p>', unsafe_allow_html=True)
     st.markdown("Monitor model performance, fraud detection KPIs, and business metrics")
 
     # Initialize session state

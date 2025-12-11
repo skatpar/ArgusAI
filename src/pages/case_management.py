@@ -16,7 +16,7 @@ from src.utils.data_generator import generate_fraud_data
 
 
 def show():
-    st.markdown('<p class="main-header">🔍 Case Management</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Case Management</p>', unsafe_allow_html=True)
     st.markdown("Investigate and manage suspicious transactions")
 
     # Initialize session state
