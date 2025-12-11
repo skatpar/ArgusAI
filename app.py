@@ -159,8 +159,8 @@ with st.sidebar:
 
     selected = option_menu(
         menu_title=None,
-        options=["Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Model Deployment"],
-        icons=["graph-up-arrow", "activity", "shield-check", "folder-open", "cpu"],
+        options=["Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Real-time Inference", "Model Deployment"],
+        icons=["graph-up-arrow", "activity", "shield-check", "folder-open", "lightning-fill", "cpu"],
         menu_icon=None,
         default_index=0,
         styles={
@@ -193,7 +193,8 @@ with st.sidebar:
                 <li>Model performance & fraud KPI tracking</li>
                 <li>Rule-based fraud detection</li>
                 <li>Case investigation & management</li>
-                <li>Model deployment & inference</li>
+                <li>Real-time inference with KNIME API</li>
+                <li>Model deployment & management</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
@@ -214,6 +215,10 @@ elif selected == "Rule Editor":
 elif selected == "Case Management":
     from src.pages import case_management
     case_management.show()
+
+elif selected == "Real-time Inference":
+    from src.pages import realtime_inference
+    realtime_inference.show()
 
 elif selected == "Model Deployment":
     from src.pages import model_deployment
