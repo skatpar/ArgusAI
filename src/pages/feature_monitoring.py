@@ -58,20 +58,20 @@ def show():
 
 
 def show_feature_drift():
-    st.markdown('### Feature Drift Detection")
+    st.markdown("### Feature Drift Detection")
     st.markdown("Detect and monitor feature distribution drift over time")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('#### Baseline Data")
+        st.markdown("#### Baseline Data")
         if st.button("Load Baseline Data"):
             with st.spinner("Loading baseline data..."):
                 st.session_state.baseline_data = generate_fraud_data(n_samples=5000, fraud_rate=0.05)
                 st.success("Baseline data loaded (5,000 records)")
 
     with col2:
-        st.markdown('#### Current Data")
+        st.markdown("#### Current Data")
         if st.button("Load Current Data"):
             with st.spinner("Loading current data..."):
                 # Simulate drift by modifying distributions
@@ -82,7 +82,7 @@ def show_feature_drift():
 
     if st.session_state.baseline_data is not None and st.session_state.monitoring_data is not None:
         st.markdown("---")
-        st.markdown('#### Drift Analysis")
+        st.markdown("#### Drift Analysis")
 
         baseline = st.session_state.baseline_data
         current = st.session_state.monitoring_data
@@ -126,7 +126,7 @@ def show_feature_drift():
 
         # Visualization
         st.markdown("---")
-        st.markdown('#### Distribution Comparison")
+        st.markdown("#### Distribution Comparison")
 
         fig = make_subplots(
             rows=1, cols=2,
@@ -166,7 +166,7 @@ def show_feature_drift():
 
         # Drift over time simulation
         st.markdown("---")
-        st.markdown('#### Drift Trends Over Time")
+        st.markdown("#### Drift Trends Over Time")
 
         time_periods = pd.date_range(end=datetime.now(), periods=30, freq='D')
         psi_values = np.random.uniform(0.05, 0.3, 30)
@@ -198,7 +198,7 @@ def show_feature_drift():
 
         # All features drift summary
         st.markdown("---")
-        st.markdown('#### All Features Drift Summary")
+        st.markdown("#### All Features Drift Summary")
 
         drift_summary = []
         for feature in numeric_features[:10]:  # Limit to first 10 features
@@ -273,7 +273,7 @@ def calculate_psi(baseline, current, bins=10):
 
 
 def show_data_quality():
-    st.markdown('### Data Quality Monitoring")
+    st.markdown("### Data Quality Monitoring")
     st.markdown("Monitor data quality metrics and completeness")
 
     # Generate or load data
@@ -292,7 +292,7 @@ def show_data_quality():
 
         # Overall quality score
         st.markdown("---")
-        st.markdown('#### Overall Data Quality Score")
+        st.markdown("#### Overall Data Quality Score")
 
         quality_metrics = calculate_quality_metrics(df)
 
@@ -320,7 +320,7 @@ def show_data_quality():
 
         # Missing values analysis
         st.markdown("---")
-        st.markdown('#### Missing Values Analysis")
+        st.markdown("#### Missing Values Analysis")
 
         missing_data = []
         for col in df.columns:
@@ -350,7 +350,7 @@ def show_data_quality():
 
         # Outlier detection
         st.markdown("---")
-        st.markdown('#### Outlier Detection")
+        st.markdown("#### Outlier Detection")
 
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         if 'is_fraud' in numeric_cols:
@@ -376,7 +376,7 @@ def show_data_quality():
 
         # Data freshness
         st.markdown("---")
-        st.markdown('#### Data Freshness")
+        st.markdown("#### Data Freshness")
 
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -398,7 +398,7 @@ def show_data_quality():
 
         # Quality trends
         st.markdown("---")
-        st.markdown('#### Quality Trends (Last 30 Days)")
+        st.markdown("#### Quality Trends (Last 30 Days)")
 
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
         completeness_trend = np.random.uniform(92, 99, 30)
@@ -450,7 +450,7 @@ def calculate_quality_metrics(df):
 
 
 def show_feature_statistics():
-    st.markdown('### Feature Statistics")
+    st.markdown("### Feature Statistics")
     st.markdown("Detailed statistical analysis of features over time")
 
     if st.session_state.monitoring_data is None:
@@ -510,7 +510,7 @@ def show_feature_statistics():
 
         # Percentiles
         st.markdown("---")
-        st.markdown('#### Percentile Distribution")
+        st.markdown("#### Percentile Distribution")
 
         percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
         percentile_values = [df[selected_feature].quantile(p/100) for p in percentiles]
@@ -533,7 +533,7 @@ def show_feature_statistics():
         # Time series if timestamp available
         if 'timestamp' in df.columns:
             st.markdown("---")
-            st.markdown('#### Time Series Analysis")
+            st.markdown("#### Time Series Analysis")
 
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['date'] = df['timestamp'].dt.date
@@ -558,7 +558,7 @@ def show_alerts_anomalies():
     st.markdown("Monitor and manage feature-related alerts")
 
     # Alert configuration
-    st.markdown('#### Alert Configuration")
+    st.markdown("#### Alert Configuration")
 
     with st.expander("Configure Alert Thresholds", expanded=True):
         col1, col2 = st.columns(2)
@@ -684,7 +684,7 @@ def generate_feature_alerts():
 
 
 def show_distribution_analysis():
-    st.markdown('### Distribution Analysis")
+    st.markdown("### Distribution Analysis")
     st.markdown("Analyze feature distributions across different segments")
 
     if st.session_state.monitoring_data is None:
@@ -703,7 +703,7 @@ def show_distribution_analysis():
 
         # Distribution by fraud status
         st.markdown("---")
-        st.markdown('#### Distribution by Fraud Status")
+        st.markdown("#### Distribution by Fraud Status")
 
         fig = px.histogram(df, x=selected_feature, color='is_fraud',
                           title=f'{selected_feature} Distribution by Fraud Status',
@@ -729,7 +729,7 @@ def show_distribution_analysis():
         # Categorical analysis
         if 'merchant_category' in df.columns:
             st.markdown("---")
-            st.markdown('#### Distribution by Merchant Category")
+            st.markdown("#### Distribution by Merchant Category")
 
             category_stats = df.groupby('merchant_category')[selected_feature].agg(['mean', 'median', 'std']).reset_index()
 
@@ -740,7 +740,7 @@ def show_distribution_analysis():
 
 
 def show_feature_importance_tracking():
-    st.markdown('### Feature Importance Tracking")
+    st.markdown("### Feature Importance Tracking")
     st.markdown("Track how feature importance changes over time")
 
     # Simulated feature importance over time
@@ -749,7 +749,7 @@ def show_feature_importance_tracking():
     features = ['transaction_amount', 'transactions_24h', 'distance_from_home',
                 'merchant_category', 'transaction_hour']
 
-    st.markdown('#### Feature Importance Trends")
+    st.markdown("#### Feature Importance Trends")
 
     # Generate importance data
     importance_data = []
@@ -777,7 +777,7 @@ def show_feature_importance_tracking():
 
     # Current importance ranking
     st.markdown("---")
-    st.markdown('#### Current Feature Ranking")
+    st.markdown("#### Current Feature Ranking")
 
     current_importance = importance_df[importance_df['date'] == importance_df['date'].max()]
     current_importance = current_importance.sort_values('importance', ascending=False)
@@ -790,7 +790,7 @@ def show_feature_importance_tracking():
 
     # Importance change
     st.markdown("---")
-    st.markdown('#### Importance Change (Last 30 Days)")
+    st.markdown("#### Importance Change (Last 30 Days)")
 
     first_day = importance_df[importance_df['date'] == importance_df['date'].min()]
     last_day = importance_df[importance_df['date'] == importance_df['date'].max()]

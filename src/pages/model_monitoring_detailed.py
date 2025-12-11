@@ -82,7 +82,7 @@ def generate_performance_data():
 
 
 def show_performance_dashboard():
-    st.markdown('### Real-Time Performance Dashboard")
+    st.markdown("### Real-Time Performance Dashboard")
     st.markdown("Current model performance metrics and status")
 
     perf_data = st.session_state.model_performance_data
@@ -92,7 +92,7 @@ def show_performance_dashboard():
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        st.markdown('#### Time Period")
+        st.markdown("#### Time Period")
 
     with col2:
         if st.button("Refresh Data"):
@@ -101,7 +101,7 @@ def show_performance_dashboard():
 
     # Key metrics
     st.markdown("---")
-    st.markdown('#### Current Performance Metrics")
+    st.markdown("#### Current Performance Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -137,7 +137,7 @@ def show_performance_dashboard():
 
     # Performance gauge charts
     st.markdown("---")
-    st.markdown('#### Performance Gauges")
+    st.markdown("#### Performance Gauges")
 
     col1, col2, col3 = st.columns(3)
 
@@ -155,7 +155,7 @@ def show_performance_dashboard():
 
     # Confusion Matrix
     st.markdown("---")
-    st.markdown('#### Current Confusion Matrix")
+    st.markdown("#### Current Confusion Matrix")
 
     cm = np.array([
         [latest['true_negatives'], latest['false_positives']],
@@ -184,7 +184,7 @@ def show_performance_dashboard():
 
     # Model status
     st.markdown("---")
-    st.markdown('#### Model Health Status")
+    st.markdown("#### Model Health Status")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -234,14 +234,14 @@ def create_gauge_chart(value, title, threshold_low, threshold_high):
 
 
 def show_fraud_kpis():
-    st.markdown('### Fraud Detection KPIs")
+    st.markdown("### Fraud Detection KPIs")
     st.markdown("Key performance indicators for fraud detection")
 
     perf_data = st.session_state.model_performance_data
     latest = perf_data.iloc[-1]
 
     # Primary KPIs
-    st.markdown('#### Primary Detection KPIs")
+    st.markdown("#### Primary Detection KPIs")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -270,7 +270,7 @@ def show_fraud_kpis():
 
     # Detection efficiency
     st.markdown("---")
-    st.markdown('#### Detection Efficiency")
+    st.markdown("#### Detection Efficiency")
 
     col1, col2, col3 = st.columns(3)
 
@@ -289,7 +289,7 @@ def show_fraud_kpis():
 
     # KPI trends
     st.markdown("---")
-    st.markdown('#### KPI Trends (Last 30 Days)")
+    st.markdown("#### KPI Trends (Last 30 Days)")
 
     fig = make_subplots(
         rows=2, cols=2,
@@ -330,7 +330,7 @@ def show_fraud_kpis():
 
     # Detection breakdown
     st.markdown("---")
-    st.markdown('#### Detection Breakdown")
+    st.markdown("#### Detection Breakdown")
 
     breakdown_data = pd.DataFrame({
         'Category': ['True Positives', 'False Positives', 'True Negatives', 'False Negatives'],
@@ -356,7 +356,7 @@ def show_fraud_kpis():
 
     # Performance targets
     st.markdown("---")
-    st.markdown('#### Performance vs Targets")
+    st.markdown("#### Performance vs Targets")
 
     targets = {
         'Metric': ['Precision', 'Recall', 'F1-Score', 'Detection Rate'],
@@ -380,7 +380,7 @@ def show_fraud_kpis():
 
 
 def show_performance_trends():
-    st.markdown('### Performance Trends Analysis")
+    st.markdown("### Performance Trends Analysis")
     st.markdown("Analyze model performance trends over time")
 
     perf_data = st.session_state.model_performance_data
@@ -392,7 +392,7 @@ def show_performance_trends():
     data_filtered = perf_data.tail(days)
 
     # Main metrics trend
-    st.markdown('#### Core Metrics Trend")
+    st.markdown("#### Core Metrics Trend")
 
     fig = go.Figure()
 
@@ -421,7 +421,7 @@ def show_performance_trends():
 
     # Statistical summary
     st.markdown("---")
-    st.markdown('#### Statistical Summary")
+    st.markdown("#### Statistical Summary")
 
     col1, col2 = st.columns(2)
 
@@ -437,7 +437,7 @@ def show_performance_trends():
 
     # Rolling averages
     st.markdown("---")
-    st.markdown('#### Rolling Averages (7-day)")
+    st.markdown("#### Rolling Averages (7-day)")
 
     data_filtered['precision_ma'] = data_filtered['precision'].rolling(window=7, min_periods=1).mean()
     data_filtered['recall_ma'] = data_filtered['recall'].rolling(window=7, min_periods=1).mean()
@@ -498,7 +498,7 @@ def show_performance_trends():
 
 
 def show_prediction_analysis():
-    st.markdown('### Prediction Analysis")
+    st.markdown("### Prediction Analysis")
     st.markdown("Analyze model predictions and confidence scores")
 
     # Generate sample prediction data
@@ -513,7 +513,7 @@ def show_prediction_analysis():
     pred_df['predicted_label'] = (pred_df['prediction_score'] > 0.5).astype(int)
 
     # Prediction score distribution
-    st.markdown('#### Prediction Score Distribution")
+    st.markdown("#### Prediction Score Distribution")
 
     fig = px.histogram(pred_df, x='prediction_score', color='true_label',
                       nbins=50, barmode='overlay',
@@ -524,7 +524,7 @@ def show_prediction_analysis():
 
     # Score calibration
     st.markdown("---")
-    st.markdown('#### Prediction Calibration")
+    st.markdown("#### Prediction Calibration")
 
     # Bin predictions
     bins = np.linspace(0, 1, 11)
@@ -563,7 +563,7 @@ def show_prediction_analysis():
 
     # ROC Curve
     st.markdown("---")
-    st.markdown('#### ROC Curve")
+    st.markdown("#### ROC Curve")
 
     col1, col2 = st.columns(2)
 
@@ -611,7 +611,7 @@ def show_prediction_analysis():
 
     # Threshold analysis
     st.markdown("---")
-    st.markdown('#### Threshold Analysis")
+    st.markdown("#### Threshold Analysis")
 
     thresholds = np.linspace(0, 1, 21)
     threshold_metrics = []
@@ -655,11 +655,11 @@ def show_prediction_analysis():
 
 
 def show_business_impact():
-    st.markdown('### Business Impact Metrics")
+    st.markdown("### Business Impact Metrics")
     st.markdown("Financial and operational impact of fraud detection")
 
     # Business metrics
-    st.markdown('#### Financial Impact")
+    st.markdown("#### Financial Impact")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -683,7 +683,7 @@ def show_business_impact():
 
     # Monthly trends
     st.markdown("---")
-    st.markdown('#### Monthly Financial Trends")
+    st.markdown("#### Monthly Financial Trends")
 
     months = pd.date_range(end=datetime.now(), periods=12, freq='M')
     financial_data = pd.DataFrame({
@@ -718,7 +718,7 @@ def show_business_impact():
 
     # Operational metrics
     st.markdown("---")
-    st.markdown('#### Operational Metrics")
+    st.markdown("#### Operational Metrics")
 
     col1, col2, col3 = st.columns(3)
 
@@ -738,7 +738,7 @@ def show_business_impact():
 
     # Customer impact
     st.markdown("---")
-    st.markdown('#### Customer Impact")
+    st.markdown("#### Customer Impact")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -760,7 +760,7 @@ def show_business_impact():
 
     # Cost-benefit analysis
     st.markdown("---")
-    st.markdown('#### Cost-Benefit Analysis")
+    st.markdown("#### Cost-Benefit Analysis")
 
     cost_benefit = pd.DataFrame({
         'Category': ['Fraud Losses Prevented', 'False Positive Costs', 'Model Operating Costs',
@@ -796,7 +796,7 @@ def show_model_health():
     st.markdown("Monitor model health and performance alerts")
 
     # Overall health score
-    st.markdown('#### Overall Model Health")
+    st.markdown("#### Overall Model Health")
 
     health_score = np.random.uniform(85, 98)
     health_status = "HEALTHY" if health_score > 90 else "FAIR" if health_score > 75 else "Poor"
@@ -814,7 +814,7 @@ def show_model_health():
 
     # Health components
     st.markdown("---")
-    st.markdown('#### Health Components")
+    st.markdown("#### Health Components")
 
     components = [
         {'Component': 'Performance', 'Score': 92, 'Status': 'GOOD'},
@@ -874,7 +874,7 @@ def show_model_health():
 
     # Model retraining recommendations
     st.markdown("---")
-    st.markdown('#### Retraining Recommendations")
+    st.markdown("#### Retraining Recommendations")
 
     col1, col2 = st.columns(2)
 
@@ -900,11 +900,11 @@ def show_model_health():
 
 
 def show_segment_performance():
-    st.markdown('### Segment Performance Analysis")
+    st.markdown("### Segment Performance Analysis")
     st.markdown("Analyze model performance across different segments")
 
     # Performance by merchant category
-    st.markdown('#### Performance by Merchant Category")
+    st.markdown("#### Performance by Merchant Category")
 
     categories = ['retail', 'online', 'groceries', 'gas_station', 'restaurant',
                  'gambling', 'crypto', 'electronics']
@@ -942,7 +942,7 @@ def show_segment_performance():
 
     # Performance by transaction amount
     st.markdown("---")
-    st.markdown('#### Performance by Transaction Amount")
+    st.markdown("#### Performance by Transaction Amount")
 
     amount_ranges = ['$0-$50', '$50-$100', '$100-$500', '$500-$1K', '$1K-$5K', '$5K+']
     amount_performance = pd.DataFrame({
@@ -981,7 +981,7 @@ def show_segment_performance():
 
     # Performance by time of day
     st.markdown("---")
-    st.markdown('#### Performance by Time of Day")
+    st.markdown("#### Performance by Time of Day")
 
     hours = list(range(0, 24))
     hourly_performance = pd.DataFrame({
