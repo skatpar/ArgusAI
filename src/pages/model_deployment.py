@@ -128,7 +128,7 @@ def show_model_registry():
     st.markdown("---")
 
     # Model cards
-    st.markdown('#### Registered Models")
+    st.markdown("#### Registered Models")
 
     for model in deployed_models:
         with st.expander(f"{model['name']} - {model['status']}", expanded=(model['status'] == 'Active')):
@@ -223,14 +223,14 @@ def show_model_registry():
 
 
 def show_model_deployment():
-    st.markdown('### Deploy Model")
+    st.markdown("### Deploy Model")
     st.markdown("Deploy models to production or testing environments")
 
     # Check if models exist in training session
     if 'models' in st.session_state and len(st.session_state.models) > 0:
         st.info("Found trained models from Data Science Workflow")
 
-        st.markdown('#### Available Models for Deployment")
+        st.markdown("#### Available Models for Deployment")
 
         available_models = list(st.session_state.models.keys())
         selected_model_name = st.selectbox("Select model to deploy:", available_models)
@@ -239,7 +239,7 @@ def show_model_deployment():
             model = st.session_state.models[selected_model_name]
 
             st.markdown("---")
-            st.markdown('#### Deployment Configuration")
+            st.markdown("#### Deployment Configuration")
 
             col1, col2 = st.columns(2)
 
@@ -273,7 +273,7 @@ def show_model_deployment():
 
             # Deployment preview
             st.markdown("---")
-            st.markdown('#### Deployment Summary")
+            st.markdown("#### Deployment Summary")
 
             deployment_config = {
                 "Model": selected_model_name,
@@ -348,7 +348,7 @@ def show_model_deployment():
         st.warning("No trained models available. Please train models in the 'Data Science Workflow' tab first.")
 
         st.markdown("---")
-        st.markdown('#### Quick Deploy - Pre-trained Models")
+        st.markdown("#### Quick Deploy - Pre-trained Models")
 
         st.info("You can also deploy pre-trained models from the Model Registry")
 
@@ -357,7 +357,7 @@ def show_model_deployment():
 
 
 def show_realtime_inference():
-    st.markdown('### Real-Time Inference")
+    st.markdown("### Real-Time Inference")
     st.markdown("Test models with real-time predictions")
 
     # Check if models are deployed
@@ -409,7 +409,7 @@ def show_realtime_inference():
     # Inference history
     if len(st.session_state.inference_history) > 0:
         st.markdown("---")
-        st.markdown('#### Recent Predictions")
+        st.markdown("#### Recent Predictions")
 
         history_df = pd.DataFrame(st.session_state.inference_history[-10:][::-1])
         st.dataframe(history_df, use_container_width=True, hide_index=True)
@@ -457,7 +457,7 @@ def show_manual_input(model):
 
             # Display result
             st.markdown("---")
-            st.markdown('#### Prediction Result")
+            st.markdown("#### Prediction Result")
 
             col1, col2, col3 = st.columns(3)
 
@@ -534,7 +534,7 @@ def show_json_input(model):
                 fraud_score = np.random.uniform(0.1, 0.95)
                 is_fraud = fraud_score > 0.5
 
-                st.markdown('#### Prediction Result")
+                st.markdown("#### Prediction Result")
                 st.metric("Fraud Probability", f"{fraud_score:.2%}")
                 st.metric("Prediction", "FRAUD" if is_fraud else "LEGITIMATE")
 
@@ -601,7 +601,7 @@ def show_batch_upload(model):
                     st.metric("Avg Fraud Score", f"{avg_score:.2%}")
 
                 # Display results
-                st.markdown('#### Prediction Results")
+                st.markdown("#### Prediction Results")
                 st.dataframe(results_df, use_container_width=True)
 
                 # Download button
@@ -682,7 +682,7 @@ def show_live_stream(model):
 
 
 def show_model_monitoring():
-    st.markdown('### Model Monitoring")
+    st.markdown("### Model Monitoring")
     st.markdown("Monitor model performance and health")
 
     # Select model
@@ -711,7 +711,7 @@ def show_model_monitoring():
     st.markdown("---")
 
     # Performance metrics
-    st.markdown('#### Performance Metrics")
+    st.markdown("#### Performance Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -734,7 +734,7 @@ def show_model_monitoring():
 
     # Charts
     st.markdown("---")
-    st.markdown('#### Monitoring Charts")
+    st.markdown("#### Monitoring Charts")
 
     # Generate sample data
     hours = pd.date_range(end=datetime.now(), periods=24, freq='H')
@@ -794,7 +794,7 @@ def show_model_monitoring():
 
     # Model health
     st.markdown("---")
-    st.markdown('#### Model Health")
+    st.markdown("#### Model Health")
 
     health_metrics = pd.DataFrame({
         'Component': ['API Endpoint', 'Model Server', 'Database', 'Cache', 'Load Balancer'],
@@ -829,7 +829,7 @@ def show_model_monitoring():
 
 
 def show_model_management():
-    st.markdown('### Model Management")
+    st.markdown("### Model Management")
     st.markdown("Manage deployed models and configurations")
 
     deployed_models = st.session_state.deployed_models
@@ -848,7 +848,7 @@ def show_model_management():
 
     # Model actions
     st.markdown("---")
-    st.markdown('#### Quick Actions")
+    st.markdown("#### Quick Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -870,7 +870,7 @@ def show_model_management():
 
     # Configuration
     st.markdown("---")
-    st.markdown('#### Model Configuration")
+    st.markdown("#### Model Configuration")
 
     with st.expander("Scaling Configuration", expanded=True):
         col1, col2 = st.columns(2)
@@ -923,7 +923,7 @@ def show_model_management():
     st.dataframe(versions, use_container_width=True, hide_index=True)
 
     # Rollback option
-    st.markdown('#### Rollback")
+    st.markdown("#### Rollback")
 
     col1, col2 = st.columns([2, 1])
 

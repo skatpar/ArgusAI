@@ -76,13 +76,13 @@ def generate_sample_cases():
 
 
 def show_case_dashboard():
-    st.markdown('### Case Dashboard")
+    st.markdown("### Case Dashboard")
     st.markdown("Overview of all fraud investigation cases")
 
     cases_df = st.session_state.cases
 
     # Metrics
-    st.markdown('#### Key Metrics")
+    st.markdown("#### Key Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -109,7 +109,7 @@ def show_case_dashboard():
 
     # Filters
     st.markdown("---")
-    st.markdown('#### Filter Cases")
+    st.markdown("#### Filter Cases")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -204,7 +204,7 @@ def show_case_dashboard():
 
     # Quick actions
     st.markdown("---")
-    st.markdown('#### Quick Actions")
+    st.markdown("#### Quick Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -226,7 +226,7 @@ def show_case_dashboard():
 
     # Visualizations
     st.markdown("---")
-    st.markdown('#### Case Visualizations")
+    st.markdown("#### Case Visualizations")
 
     col1, col2 = st.columns(2)
 
@@ -250,7 +250,7 @@ def show_case_dashboard():
 
 
 def show_case_investigation():
-    st.markdown('### Case Investigation")
+    st.markdown("### Case Investigation")
     st.markdown("Detailed investigation of suspicious transactions")
 
     if st.session_state.selected_case is None:
@@ -294,7 +294,7 @@ def show_case_investigation():
     st.markdown("---")
 
     # Case overview
-    st.markdown('### Case Overview")
+    st.markdown("### Case Overview")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -396,7 +396,7 @@ def show_case_investigation():
 
     # Timeline visualization
     st.markdown("---")
-    st.markdown('### Transaction Timeline")
+    st.markdown("### Transaction Timeline")
 
     # Create sample timeline data
     timeline_data = pd.DataFrame({
@@ -416,7 +416,7 @@ def show_case_investigation():
 
     # Evidence and Notes
     st.markdown("---")
-    st.markdown('### Investigation Notes")
+    st.markdown("### Investigation Notes")
 
     col1, col2 = st.columns([3, 1])
 
@@ -441,7 +441,7 @@ def show_case_investigation():
 
     # Actions
     st.markdown("---")
-    st.markdown('### Case Actions")
+    st.markdown("### Case Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -463,13 +463,13 @@ def show_case_investigation():
 
 
 def show_case_analytics():
-    st.markdown('### Case Analytics")
+    st.markdown("### Case Analytics")
     st.markdown("Analyze case trends and performance")
 
     cases_df = st.session_state.cases
 
     # Time range selector
-    st.markdown('#### Time Range")
+    st.markdown("#### Time Range")
 
     col1, col2 = st.columns(2)
 
@@ -481,7 +481,7 @@ def show_case_analytics():
 
     # Case trends
     st.markdown("---")
-    st.markdown('#### Case Trends")
+    st.markdown("#### Case Trends")
 
     # Generate daily case counts
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -524,7 +524,7 @@ def show_case_analytics():
 
     # Analyst performance
     st.markdown("---")
-    st.markdown('#### Analyst Performance")
+    st.markdown("#### Analyst Performance")
 
     analyst_perf = pd.DataFrame({
         'Analyst': ['Analyst A', 'Analyst B', 'Analyst C'],
@@ -540,7 +540,7 @@ def show_case_analytics():
 
     # Case distribution
     st.markdown("---")
-    st.markdown('#### Case Distribution")
+    st.markdown("#### Case Distribution")
 
     col1, col2 = st.columns(2)
 
@@ -561,10 +561,10 @@ def show_case_analytics():
 
 
 def show_case_workflow():
-    st.markdown('### Case Workflow Configuration")
+    st.markdown("### Case Workflow Configuration")
     st.markdown("Configure case management workflows and automation")
 
-    st.markdown('#### Workflow Stages")
+    st.markdown("#### Workflow Stages")
 
     workflow_stages = [
         {'Stage': 'New', 'Description': 'Case created', 'Auto-assign': True, 'SLA (hours)': 1},
@@ -578,7 +578,7 @@ def show_case_workflow():
     st.dataframe(workflow_df, use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    st.markdown('#### Automation Rules")
+    st.markdown("#### Automation Rules")
 
     with st.expander("Auto-assignment Rules", expanded=True):
         st.markdown("**Configure automatic case assignment:**")
@@ -625,7 +625,7 @@ def show_case_workflow():
         st.success("Workflow configuration saved successfully!")
 
     st.markdown("---")
-    st.markdown('#### SLA Monitoring")
+    st.markdown("#### SLA Monitoring")
 
     sla_data = pd.DataFrame({
         'Priority': ['Critical', 'High', 'Medium', 'Low'],

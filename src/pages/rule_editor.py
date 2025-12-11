@@ -107,7 +107,7 @@ def initialize_default_rules():
 
 
 def show_rule_manager():
-    st.markdown('### Rule Manager")
+    st.markdown("### Rule Manager")
     st.markdown("Create, edit, and manage fraud detection rules")
 
     # Add new rule section
@@ -179,7 +179,7 @@ def show_rule_manager():
 
     # Display existing rules
     st.markdown("---")
-    st.markdown('### Existing Rules")
+    st.markdown("### Existing Rules")
 
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -242,7 +242,7 @@ def show_rule_manager():
 
     # Summary metrics
     st.markdown("---")
-    st.markdown('### Rule Summary")
+    st.markdown("### Rule Summary")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -263,7 +263,7 @@ def show_rule_manager():
 
 
 def show_rule_testing():
-    st.markdown('### Rule Testing")
+    st.markdown("### Rule Testing")
     st.markdown("Test rules against sample or real data")
 
     if len(st.session_state.rules) == 0:
@@ -452,7 +452,7 @@ def evaluate_rule(df, rule):
 
 
 def show_monitoring_dashboard():
-    st.markdown('### Real-Time Monitoring Dashboard")
+    st.markdown("### Real-Time Monitoring Dashboard")
     st.markdown("Monitor fraud detection in real-time")
 
     # Generate monitoring data if not exists
@@ -465,7 +465,7 @@ def show_monitoring_dashboard():
         data = st.session_state.monitoring_data
 
         # Real-time metrics
-        st.markdown('#### Real-Time Metrics")
+        st.markdown("#### Real-Time Metrics")
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -489,7 +489,7 @@ def show_monitoring_dashboard():
 
         # Time series charts
         st.markdown("---")
-        st.markdown('#### Transaction Trends")
+        st.markdown("#### Transaction Trends")
 
         col1, col2 = st.columns(2)
 
@@ -525,14 +525,14 @@ def show_monitoring_dashboard():
 
         # Rule performance
         st.markdown("---")
-        st.markdown('#### Rule Performance")
+        st.markdown("#### Rule Performance")
 
         rule_perf = pd.DataFrame(data['rule_performance'])
         st.dataframe(rule_perf, use_container_width=True)
 
         # Top flagged categories
         st.markdown("---")
-        st.markdown('#### Top Alert Categories")
+        st.markdown("#### Top Alert Categories")
 
         col1, col2 = st.columns(2)
 
@@ -605,7 +605,7 @@ def generate_monitoring_data():
 
 
 def show_rule_performance():
-    st.markdown('### Rule Performance Analytics")
+    st.markdown("### Rule Performance Analytics")
     st.markdown("Analyze and optimize rule effectiveness")
 
     if len(st.session_state.rules) == 0:
@@ -613,7 +613,7 @@ def show_rule_performance():
         return
 
     # Generate performance data
-    st.markdown('#### Historical Performance")
+    st.markdown("#### Historical Performance")
 
     # Date range selector
     col1, col2 = st.columns(2)
@@ -644,7 +644,7 @@ def show_rule_performance():
 
             perf_df = pd.DataFrame(performance_data)
 
-            st.markdown('#### Performance Metrics")
+            st.markdown("#### Performance Metrics")
             st.dataframe(perf_df.style.background_gradient(subset=['Precision', 'Recall', 'F1 Score'],
                                                           cmap='RdYlGn'),
                         use_container_width=True)
@@ -667,7 +667,7 @@ def show_rule_performance():
 
             # Rule recommendations
             st.markdown("---")
-            st.markdown('#### Recommendations")
+            st.markdown("#### Recommendations")
 
             # Find low performing rules
             low_precision = perf_df[perf_df['Precision'] < 0.6]
