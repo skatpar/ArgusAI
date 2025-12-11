@@ -29,7 +29,7 @@ def show():
         st.session_state.monitoring_data = None
 
     # Create tabs
-    tabs = st.tabs(["📝 Rule Manager", "🧪 Rule Testing", "📊 Monitoring Dashboard", "📈 Rule Performance"])
+    tabs = st.tabs(["Rule Manager", "Rule Testing", "Monitoring Dashboard", "Rule Performance"])
 
     with tabs[0]:
         show_rule_manager()
@@ -107,7 +107,7 @@ def initialize_default_rules():
 
 
 def show_rule_manager():
-    st.markdown("### 📝 Rule Manager")
+    st.markdown('### Rule Manager")
     st.markdown("Create, edit, and manage fraud detection rules")
 
     # Add new rule section
@@ -159,7 +159,7 @@ def show_rule_manager():
         st.markdown("**Generated SQL Template:**")
         st.code(sql_template, language='sql')
 
-        if st.button("💾 Save Rule", type="primary"):
+        if st.button("Save Rule", type="primary"):
             if new_rule_name and new_rule_id:
                 new_rule = {
                     'id': new_rule_id,
@@ -173,13 +173,13 @@ def show_rule_manager():
                     'actions': new_rule_actions
                 }
                 st.session_state.rules.append(new_rule)
-                st.success(f"✅ Rule '{new_rule_name}' created successfully!")
+                st.success(f"Rule '{new_rule_name}' created successfully!")
             else:
                 st.error("Please provide Rule ID and Name")
 
     # Display existing rules
     st.markdown("---")
-    st.markdown("### 📋 Existing Rules")
+    st.markdown('### Existing Rules")
 
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -190,7 +190,7 @@ def show_rule_manager():
         filter_priority = st.multiselect("Filter by Priority:", ["Low", "Medium", "High", "Critical"],
                                         default=["Low", "Medium", "High", "Critical"])
     with col3:
-        search_term = st.text_input("🔍 Search rules:")
+        search_term = st.text_input("Search rules:")
 
     # Filter rules
     filtered_rules = [r for r in st.session_state.rules
@@ -220,11 +220,11 @@ def show_rule_manager():
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                if st.button("✏️ Edit", key=f"edit_{i}"):
+                if st.button("Edit", key=f"edit_{i}"):
                     st.info("Edit functionality - would open edit dialog")
 
             with col2:
-                if st.button("🧪 Test", key=f"test_{i}"):
+                if st.button("Test", key=f"test_{i}"):
                     st.info("Test functionality - would run rule on sample data")
 
             with col3:
@@ -236,13 +236,13 @@ def show_rule_manager():
                     st.success(f"Status updated to {new_status}")
 
             with col4:
-                if st.button("🗑️ Delete", key=f"delete_{i}"):
+                if st.button("Delete", key=f"delete_{i}"):
                     st.session_state.rules.remove(rule)
                     st.rerun()
 
     # Summary metrics
     st.markdown("---")
-    st.markdown("### 📊 Rule Summary")
+    st.markdown('### Rule Summary")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -263,15 +263,15 @@ def show_rule_manager():
 
 
 def show_rule_testing():
-    st.markdown("### 🧪 Rule Testing")
+    st.markdown('### Rule Testing")
     st.markdown("Test rules against sample or real data")
 
     if len(st.session_state.rules) == 0:
-        st.warning("⚠️ No rules available. Please create rules in the Rule Manager tab.")
+        st.warning("No rules available. Please create rules in the Rule Manager tab.")
         return
 
     # Data source
-    st.markdown("#### 1️⃣ Select Data Source")
+    st.markdown("#### 1⃣ Select Data Source")
 
     col1, col2 = st.columns(2)
 
@@ -283,18 +283,18 @@ def show_rule_testing():
             n_samples = st.number_input("Number of records:", 100, 10000, 1000)
 
     # Load/Generate data
-    if st.button("📥 Load Data", type="primary"):
+    if st.button("Load Data", type="primary"):
         with st.spinner("Loading data..."):
             if data_source == "Generate Sample Data":
                 test_data = generate_fraud_data(n_samples=n_samples, fraud_rate=0.05)
                 st.session_state.test_data = test_data
-                st.success(f"✅ Generated {len(test_data)} test records")
+                st.success(f"Generated {len(test_data)} test records")
             else:
                 st.info("Other data sources would be implemented here")
 
     if 'test_data' in st.session_state and st.session_state.test_data is not None:
         st.markdown("---")
-        st.markdown("#### 2️⃣ Select Rules to Test")
+        st.markdown("#### 2⃣ Select Rules to Test")
 
         # Select rules
         active_rules = [r for r in st.session_state.rules if r['status'] in ['Active', 'Testing']]
@@ -305,18 +305,18 @@ def show_rule_testing():
             default=[f"{r['id']}: {r['name']}" for r in active_rules[:3]]
         )
 
-        if st.button("🚀 Run Rules", type="primary"):
+        if st.button("Run Rules", type="primary"):
             with st.spinner("Running rules..."):
                 # Apply rules
                 results = apply_rules_to_data(st.session_state.test_data, selected_rules, active_rules)
                 st.session_state.rule_results = results
 
-                st.success(f"✅ Rules applied to {len(st.session_state.test_data)} records")
+                st.success(f"Rules applied to {len(st.session_state.test_data)} records")
 
         # Display results
         if st.session_state.rule_results is not None:
             st.markdown("---")
-            st.markdown("#### 3️⃣ Test Results")
+            st.markdown("#### 3⃣ Test Results")
 
             results = st.session_state.rule_results
 
@@ -361,7 +361,7 @@ def show_rule_testing():
                 # Download button
                 csv = flagged_df.to_csv(index=False)
                 st.download_button(
-                    label="📥 Download Flagged Transactions",
+                    label="Download Flagged Transactions",
                     data=csv,
                     file_name=f"flagged_transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
@@ -452,20 +452,20 @@ def evaluate_rule(df, rule):
 
 
 def show_monitoring_dashboard():
-    st.markdown("### 📊 Real-Time Monitoring Dashboard")
+    st.markdown('### Real-Time Monitoring Dashboard")
     st.markdown("Monitor fraud detection in real-time")
 
     # Generate monitoring data if not exists
-    if st.button("🔄 Generate Monitoring Data"):
+    if st.button("Generate Monitoring Data"):
         with st.spinner("Generating monitoring data..."):
             st.session_state.monitoring_data = generate_monitoring_data()
-            st.success("✅ Monitoring data generated")
+            st.success("Monitoring data generated")
 
     if st.session_state.monitoring_data is not None:
         data = st.session_state.monitoring_data
 
         # Real-time metrics
-        st.markdown("#### 🎯 Real-Time Metrics")
+        st.markdown('#### Real-Time Metrics")
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -489,7 +489,7 @@ def show_monitoring_dashboard():
 
         # Time series charts
         st.markdown("---")
-        st.markdown("#### 📈 Transaction Trends")
+        st.markdown('#### Transaction Trends")
 
         col1, col2 = st.columns(2)
 
@@ -501,7 +501,7 @@ def show_monitoring_dashboard():
                 y=data['time_series']['total_transactions'],
                 mode='lines',
                 name='Total Transactions',
-                line=dict(color='blue', width=2)
+                line=dict(color='#744ada', width=2)
             ))
             fig.update_layout(title='Transaction Volume (Last 24 Hours)',
                             xaxis_title='Time',
@@ -516,7 +516,7 @@ def show_monitoring_dashboard():
                 y=data['time_series']['fraud_cases'],
                 mode='lines+markers',
                 name='Fraud Cases',
-                line=dict(color='red', width=2)
+                line=dict(color='#000000', width=2)
             ))
             fig.update_layout(title='Fraud Cases Detected (Last 24 Hours)',
                             xaxis_title='Time',
@@ -525,14 +525,14 @@ def show_monitoring_dashboard():
 
         # Rule performance
         st.markdown("---")
-        st.markdown("#### 🎯 Rule Performance")
+        st.markdown('#### Rule Performance")
 
         rule_perf = pd.DataFrame(data['rule_performance'])
         st.dataframe(rule_perf, use_container_width=True)
 
         # Top flagged categories
         st.markdown("---")
-        st.markdown("#### 🔍 Top Alert Categories")
+        st.markdown('#### Top Alert Categories")
 
         col1, col2 = st.columns(2)
 
@@ -605,15 +605,15 @@ def generate_monitoring_data():
 
 
 def show_rule_performance():
-    st.markdown("### 📈 Rule Performance Analytics")
+    st.markdown('### Rule Performance Analytics")
     st.markdown("Analyze and optimize rule effectiveness")
 
     if len(st.session_state.rules) == 0:
-        st.warning("⚠️ No rules available")
+        st.warning("No rules available")
         return
 
     # Generate performance data
-    st.markdown("#### 📊 Historical Performance")
+    st.markdown('#### Historical Performance")
 
     # Date range selector
     col1, col2 = st.columns(2)
@@ -624,7 +624,7 @@ def show_rule_performance():
     with col2:
         end_date = st.date_input("End Date:", value=datetime.now())
 
-    if st.button("📈 Generate Performance Report"):
+    if st.button("Generate Performance Report"):
         with st.spinner("Generating report..."):
             # Simulate performance metrics
             performance_data = []
@@ -644,7 +644,7 @@ def show_rule_performance():
 
             perf_df = pd.DataFrame(performance_data)
 
-            st.markdown("#### 📋 Performance Metrics")
+            st.markdown('#### Performance Metrics")
             st.dataframe(perf_df.style.background_gradient(subset=['Precision', 'Recall', 'F1 Score'],
                                                           cmap='RdYlGn'),
                         use_container_width=True)
@@ -667,13 +667,13 @@ def show_rule_performance():
 
             # Rule recommendations
             st.markdown("---")
-            st.markdown("#### 💡 Recommendations")
+            st.markdown('#### Recommendations")
 
             # Find low performing rules
             low_precision = perf_df[perf_df['Precision'] < 0.6]
 
             if len(low_precision) > 0:
-                st.warning(f"⚠️ {len(low_precision)} rule(s) with precision below 60%:")
+                st.warning(f"{len(low_precision)} rule(s) with precision below 60%:")
                 for _, row in low_precision.iterrows():
                     st.markdown(f"- **{row['Rule Name']}**: Precision = {row['Precision']:.2%} - Consider adjusting thresholds")
 
@@ -681,6 +681,6 @@ def show_rule_performance():
             high_perf = perf_df[perf_df['F1 Score'] > 0.75]
 
             if len(high_perf) > 0:
-                st.success(f"✅ {len(high_perf)} high-performing rule(s):")
+                st.success(f"{len(high_perf)} high-performing rule(s):")
                 for _, row in high_perf.iterrows():
                     st.markdown(f"- **{row['Rule Name']}**: F1 Score = {row['F1 Score']:.2%}")

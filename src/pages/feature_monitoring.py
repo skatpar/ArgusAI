@@ -30,12 +30,12 @@ def show():
 
     # Create tabs
     tabs = st.tabs([
-        "📈 Feature Drift",
-        "📊 Data Quality",
-        "🔍 Feature Statistics",
-        "⚠️ Alerts & Anomalies",
-        "📉 Distribution Analysis",
-        "🎯 Feature Importance Tracking"
+        "Feature Drift",
+        "Data Quality",
+        "Feature Statistics",
+        "Alerts & Anomalies",
+        "Distribution Analysis",
+        "Feature Importance Tracking"
     ])
 
     with tabs[0]:
@@ -58,31 +58,31 @@ def show():
 
 
 def show_feature_drift():
-    st.markdown("### 📈 Feature Drift Detection")
+    st.markdown('### Feature Drift Detection")
     st.markdown("Detect and monitor feature distribution drift over time")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### 🎯 Baseline Data")
-        if st.button("📥 Load Baseline Data"):
+        st.markdown('#### Baseline Data")
+        if st.button("Load Baseline Data"):
             with st.spinner("Loading baseline data..."):
                 st.session_state.baseline_data = generate_fraud_data(n_samples=5000, fraud_rate=0.05)
-                st.success("✅ Baseline data loaded (5,000 records)")
+                st.success("Baseline data loaded (5,000 records)")
 
     with col2:
-        st.markdown("#### 📊 Current Data")
-        if st.button("🔄 Load Current Data"):
+        st.markdown('#### Current Data")
+        if st.button("Load Current Data"):
             with st.spinner("Loading current data..."):
                 # Simulate drift by modifying distributions
                 st.session_state.monitoring_data = generate_fraud_data(n_samples=5000, fraud_rate=0.05)
                 # Add drift to some features
                 st.session_state.monitoring_data['transaction_amount'] *= np.random.uniform(1.2, 1.5)
-                st.success("✅ Current data loaded (5,000 records)")
+                st.success("Current data loaded (5,000 records)")
 
     if st.session_state.baseline_data is not None and st.session_state.monitoring_data is not None:
         st.markdown("---")
-        st.markdown("#### 🔍 Drift Analysis")
+        st.markdown('#### Drift Analysis")
 
         baseline = st.session_state.baseline_data
         current = st.session_state.monitoring_data
@@ -107,7 +107,7 @@ def show_feature_drift():
             st.metric("KS Statistic", f"{drift_metrics['ks_statistic']:.4f}")
 
         with col2:
-            psi_color = "🟢" if drift_metrics['psi'] < 0.1 else "🟡" if drift_metrics['psi'] < 0.2 else "🔴"
+            psi_color = "" if drift_metrics['psi'] < 0.1 else "" if drift_metrics['psi'] < 0.2 else ""
             st.metric("PSI", f"{psi_color} {drift_metrics['psi']:.4f}")
 
         with col3:
@@ -118,15 +118,15 @@ def show_feature_drift():
 
         # Drift interpretation
         if drift_metrics['psi'] < 0.1:
-            st.success("✅ No significant drift detected")
+            st.success("No significant drift detected")
         elif drift_metrics['psi'] < 0.2:
-            st.warning("⚠️ Moderate drift detected - monitor closely")
+            st.warning("Moderate drift detected - monitor closely")
         else:
-            st.error("🚨 Significant drift detected - investigation required")
+            st.error("Significant drift detected - investigation required")
 
         # Visualization
         st.markdown("---")
-        st.markdown("#### 📊 Distribution Comparison")
+        st.markdown('#### Distribution Comparison")
 
         fig = make_subplots(
             rows=1, cols=2,
@@ -137,14 +137,14 @@ def show_feature_drift():
         # Baseline histogram
         fig.add_trace(
             go.Histogram(x=baseline[selected_feature], name='Baseline',
-                        marker_color='blue', opacity=0.7, nbinsx=50),
+                        marker_color='#744ada', opacity=0.7, nbinsx=50),
             row=1, col=1
         )
 
         # Current histogram
         fig.add_trace(
             go.Histogram(x=current[selected_feature], name='Current',
-                        marker_color='red', opacity=0.7, nbinsx=50),
+                        marker_color='#000000', opacity=0.7, nbinsx=50),
             row=1, col=2
         )
 
@@ -154,9 +154,9 @@ def show_feature_drift():
         # Overlay comparison
         fig2 = go.Figure()
         fig2.add_trace(go.Histogram(x=baseline[selected_feature], name='Baseline',
-                                   marker_color='blue', opacity=0.5, nbinsx=50))
+                                   marker_color='#744ada', opacity=0.5, nbinsx=50))
         fig2.add_trace(go.Histogram(x=current[selected_feature], name='Current',
-                                   marker_color='red', opacity=0.5, nbinsx=50))
+                                   marker_color='#000000', opacity=0.5, nbinsx=50))
         fig2.update_layout(
             title=f"{selected_feature} - Overlay Comparison",
             barmode='overlay',
@@ -166,7 +166,7 @@ def show_feature_drift():
 
         # Drift over time simulation
         st.markdown("---")
-        st.markdown("#### 📉 Drift Trends Over Time")
+        st.markdown('#### Drift Trends Over Time")
 
         time_periods = pd.date_range(end=datetime.now(), periods=30, freq='D')
         psi_values = np.random.uniform(0.05, 0.3, 30)
@@ -180,12 +180,12 @@ def show_feature_drift():
         fig3 = go.Figure()
         fig3.add_trace(go.Scatter(x=drift_df['date'], y=drift_df['PSI'],
                                  mode='lines+markers', name='PSI',
-                                 line=dict(color='blue', width=2)))
+                                 line=dict(color='#744ada', width=2)))
 
         # Add threshold lines
-        fig3.add_hline(y=0.1, line_dash="dash", line_color="green",
+        fig3.add_hline(y=0.1, line_dash="dash", line_color="#744ada",
                       annotation_text="Low Drift Threshold")
-        fig3.add_hline(y=0.2, line_dash="dash", line_color="orange",
+        fig3.add_hline(y=0.2, line_dash="dash", line_color="#666666",
                       annotation_text="High Drift Threshold")
 
         fig3.update_layout(
@@ -198,12 +198,12 @@ def show_feature_drift():
 
         # All features drift summary
         st.markdown("---")
-        st.markdown("#### 📋 All Features Drift Summary")
+        st.markdown('#### All Features Drift Summary")
 
         drift_summary = []
         for feature in numeric_features[:10]:  # Limit to first 10 features
             metrics = calculate_drift_metrics(baseline[feature], current[feature])
-            status = "🟢 Good" if metrics['psi'] < 0.1 else "🟡 Monitor" if metrics['psi'] < 0.2 else "🔴 Alert"
+            status = "GOOD" if metrics['psi'] < 0.1 else "MONITOR" if metrics['psi'] < 0.2 else "ALERT"
 
             drift_summary.append({
                 'Feature': feature,
@@ -273,11 +273,11 @@ def calculate_psi(baseline, current, bins=10):
 
 
 def show_data_quality():
-    st.markdown("### 📊 Data Quality Monitoring")
+    st.markdown('### Data Quality Monitoring")
     st.markdown("Monitor data quality metrics and completeness")
 
     # Generate or load data
-    if st.button("🔄 Load Data for Quality Check"):
+    if st.button("Load Data for Quality Check"):
         with st.spinner("Loading data..."):
             st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
             # Introduce some quality issues for demonstration
@@ -285,14 +285,14 @@ def show_data_quality():
             # Add missing values
             df.loc[df.sample(frac=0.05).index, 'transaction_amount'] = np.nan
             df.loc[df.sample(frac=0.03).index, 'merchant_category'] = np.nan
-            st.success("✅ Data loaded (10,000 records)")
+            st.success("Data loaded (10,000 records)")
 
     if st.session_state.monitoring_data is not None:
         df = st.session_state.monitoring_data
 
         # Overall quality score
         st.markdown("---")
-        st.markdown("#### 🎯 Overall Data Quality Score")
+        st.markdown('#### Overall Data Quality Score")
 
         quality_metrics = calculate_quality_metrics(df)
 
@@ -300,27 +300,27 @@ def show_data_quality():
 
         with col1:
             completeness = quality_metrics['completeness']
-            color = "🟢" if completeness > 95 else "🟡" if completeness > 90 else "🔴"
+            color = "" if completeness > 95 else "" if completeness > 90 else ""
             st.metric("Completeness", f"{color} {completeness:.1f}%")
 
         with col2:
             validity = quality_metrics['validity']
-            color = "🟢" if validity > 95 else "🟡" if validity > 90 else "🔴"
+            color = "" if validity > 95 else "" if validity > 90 else ""
             st.metric("Validity", f"{color} {validity:.1f}%")
 
         with col3:
             consistency = quality_metrics['consistency']
-            color = "🟢" if consistency > 95 else "🟡" if consistency > 90 else "🔴"
+            color = "" if consistency > 95 else "" if consistency > 90 else ""
             st.metric("Consistency", f"{color} {consistency:.1f}%")
 
         with col4:
             overall_score = (completeness + validity + consistency) / 3
-            color = "🟢" if overall_score > 95 else "🟡" if overall_score > 90 else "🔴"
+            color = "" if overall_score > 95 else "" if overall_score > 90 else ""
             st.metric("Overall Score", f"{color} {overall_score:.1f}%")
 
         # Missing values analysis
         st.markdown("---")
-        st.markdown("#### 📉 Missing Values Analysis")
+        st.markdown('#### Missing Values Analysis")
 
         missing_data = []
         for col in df.columns:
@@ -332,7 +332,7 @@ def show_data_quality():
                     'Feature': col,
                     'Missing Count': missing_count,
                     'Missing %': f"{missing_pct:.2f}%",
-                    'Status': '🟢 Good' if missing_pct < 5 else '🟡 Monitor' if missing_pct < 10 else '🔴 Alert'
+                    'Status': 'GOOD' if missing_pct < 5 else 'MONITOR' if missing_pct < 10 else 'ALERT'
                 })
 
         if missing_data:
@@ -346,11 +346,11 @@ def show_data_quality():
                         color_continuous_scale='Reds')
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.success("✅ No missing values detected")
+            st.success("No missing values detected")
 
         # Outlier detection
         st.markdown("---")
-        st.markdown("#### 🎯 Outlier Detection")
+        st.markdown('#### Outlier Detection")
 
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         if 'is_fraud' in numeric_cols:
@@ -368,7 +368,7 @@ def show_data_quality():
                 'Feature': col,
                 'Outliers': outliers,
                 'Outlier %': f"{outlier_pct:.2f}%",
-                'Status': '🟢 Good' if outlier_pct < 5 else '🟡 Monitor' if outlier_pct < 10 else '🔴 Alert'
+                'Status': 'GOOD' if outlier_pct < 5 else 'MONITOR' if outlier_pct < 10 else 'ALERT'
             })
 
         outlier_df = pd.DataFrame(outlier_summary)
@@ -376,7 +376,7 @@ def show_data_quality():
 
         # Data freshness
         st.markdown("---")
-        st.markdown("#### ⏰ Data Freshness")
+        st.markdown('#### Data Freshness")
 
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -393,12 +393,12 @@ def show_data_quality():
                 st.metric("Data Age", f"{data_age:.1f} hours")
 
             with col3:
-                status = "🟢 Fresh" if data_age < 1 else "🟡 Moderate" if data_age < 24 else "🔴 Stale"
+                status = "FRESH" if data_age < 1 else "Moderate" if data_age < 24 else "Stale"
                 st.metric("Freshness Status", status)
 
         # Quality trends
         st.markdown("---")
-        st.markdown("#### 📈 Quality Trends (Last 30 Days)")
+        st.markdown('#### Quality Trends (Last 30 Days)")
 
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
         completeness_trend = np.random.uniform(92, 99, 30)
@@ -406,11 +406,11 @@ def show_data_quality():
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=dates, y=completeness_trend, mode='lines+markers',
-                                name='Completeness', line=dict(color='blue')))
+                                name='Completeness', line=dict(color='#744ada')))
         fig.add_trace(go.Scatter(x=dates, y=validity_trend, mode='lines+markers',
-                                name='Validity', line=dict(color='green')))
+                                name='Validity', line=dict(color='#744ada')))
 
-        fig.add_hline(y=95, line_dash="dash", line_color="red",
+        fig.add_hline(y=95, line_dash="dash", line_color="#000000",
                      annotation_text="Target Threshold (95%)")
 
         fig.update_layout(
@@ -450,13 +450,13 @@ def calculate_quality_metrics(df):
 
 
 def show_feature_statistics():
-    st.markdown("### 🔍 Feature Statistics")
+    st.markdown('### Feature Statistics")
     st.markdown("Detailed statistical analysis of features over time")
 
     if st.session_state.monitoring_data is None:
-        if st.button("🔄 Load Data"):
+        if st.button("Load Data"):
             st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            st.success("✅ Data loaded")
+            st.success("Data loaded")
 
     if st.session_state.monitoring_data is not None:
         df = st.session_state.monitoring_data
@@ -510,7 +510,7 @@ def show_feature_statistics():
 
         # Percentiles
         st.markdown("---")
-        st.markdown("#### 📊 Percentile Distribution")
+        st.markdown('#### Percentile Distribution")
 
         percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
         percentile_values = [df[selected_feature].quantile(p/100) for p in percentiles]
@@ -533,7 +533,7 @@ def show_feature_statistics():
         # Time series if timestamp available
         if 'timestamp' in df.columns:
             st.markdown("---")
-            st.markdown("#### 📈 Time Series Analysis")
+            st.markdown('#### Time Series Analysis")
 
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['date'] = df['timestamp'].dt.date
@@ -554,11 +554,11 @@ def show_feature_statistics():
 
 
 def show_alerts_anomalies():
-    st.markdown("### ⚠️ Alerts & Anomalies")
+    st.markdown("### Alerts & Anomalies")
     st.markdown("Monitor and manage feature-related alerts")
 
     # Alert configuration
-    st.markdown("#### ⚙️ Alert Configuration")
+    st.markdown('#### Alert Configuration")
 
     with st.expander("Configure Alert Thresholds", expanded=True):
         col1, col2 = st.columns(2)
@@ -574,16 +574,16 @@ def show_alerts_anomalies():
             outlier_threshold = st.slider("Outlier % Alert:", 0, 50, 15)
 
     # Generate alerts
-    if st.button("🔍 Scan for Anomalies"):
+    if st.button("Scan for Anomalies"):
         with st.spinner("Scanning for anomalies..."):
             alerts = generate_feature_alerts()
             st.session_state.feature_alerts = alerts
-            st.success(f"✅ Scan complete - {len(alerts)} alerts found")
+            st.success(f"Scan complete - {len(alerts)} alerts found")
 
     # Display alerts
     if len(st.session_state.feature_alerts) > 0:
         st.markdown("---")
-        st.markdown("#### 🚨 Active Alerts")
+        st.markdown("#### Active Alerts")
 
         # Alert summary
         col1, col2, col3 = st.columns(3)
@@ -593,17 +593,17 @@ def show_alerts_anomalies():
         info_alerts = [a for a in st.session_state.feature_alerts if a['severity'] == 'Info']
 
         with col1:
-            st.metric("🔴 Critical", len(critical_alerts))
+            st.metric("CRITICAL", len(critical_alerts))
 
         with col2:
-            st.metric("🟡 Warning", len(warning_alerts))
+            st.metric("Warning", len(warning_alerts))
 
         with col3:
             st.metric("🔵 Info", len(info_alerts))
 
         # Alert list
         for alert in st.session_state.feature_alerts:
-            severity_icon = "🔴" if alert['severity'] == 'Critical' else "🟡" if alert['severity'] == 'Warning' else "🔵"
+            severity_icon = "" if alert['severity'] == 'Critical' else "" if alert['severity'] == 'Warning' else "🔵"
 
             with st.expander(f"{severity_icon} {alert['title']}", expanded=(alert['severity'] == 'Critical')):
                 st.markdown(f"**Feature:** {alert['feature']}")
@@ -615,15 +615,15 @@ def show_alerts_anomalies():
                 col1, col2, col3 = st.columns(3)
 
                 with col1:
-                    if st.button("✅ Acknowledge", key=f"ack_{alert['id']}"):
+                    if st.button("Acknowledge", key=f"ack_{alert['id']}"):
                         st.info("Alert acknowledged")
 
                 with col2:
-                    if st.button("🔍 Investigate", key=f"inv_{alert['id']}"):
+                    if st.button("Investigate", key=f"inv_{alert['id']}"):
                         st.info("Opening investigation...")
 
                 with col3:
-                    if st.button("❌ Dismiss", key=f"dis_{alert['id']}"):
+                    if st.button("Dismiss", key=f"dis_{alert['id']}"):
                         st.success("Alert dismissed")
 
     else:
@@ -684,13 +684,13 @@ def generate_feature_alerts():
 
 
 def show_distribution_analysis():
-    st.markdown("### 📉 Distribution Analysis")
+    st.markdown('### Distribution Analysis")
     st.markdown("Analyze feature distributions across different segments")
 
     if st.session_state.monitoring_data is None:
-        if st.button("🔄 Load Data"):
+        if st.button("Load Data"):
             st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            st.success("✅ Data loaded")
+            st.success("Data loaded")
 
     if st.session_state.monitoring_data is not None:
         df = st.session_state.monitoring_data
@@ -703,12 +703,12 @@ def show_distribution_analysis():
 
         # Distribution by fraud status
         st.markdown("---")
-        st.markdown("#### 📊 Distribution by Fraud Status")
+        st.markdown('#### Distribution by Fraud Status")
 
         fig = px.histogram(df, x=selected_feature, color='is_fraud',
                           title=f'{selected_feature} Distribution by Fraud Status',
                           nbins=50, barmode='overlay',
-                          color_discrete_map={0: 'blue', 1: 'red'},
+                          color_discrete_map={0: '#744ada', 1: '#000000'},
                           labels={'is_fraud': 'Fraud Status'})
         st.plotly_chart(fig, use_container_width=True)
 
@@ -729,7 +729,7 @@ def show_distribution_analysis():
         # Categorical analysis
         if 'merchant_category' in df.columns:
             st.markdown("---")
-            st.markdown("#### 📊 Distribution by Merchant Category")
+            st.markdown('#### Distribution by Merchant Category")
 
             category_stats = df.groupby('merchant_category')[selected_feature].agg(['mean', 'median', 'std']).reset_index()
 
@@ -740,7 +740,7 @@ def show_distribution_analysis():
 
 
 def show_feature_importance_tracking():
-    st.markdown("### 🎯 Feature Importance Tracking")
+    st.markdown('### Feature Importance Tracking")
     st.markdown("Track how feature importance changes over time")
 
     # Simulated feature importance over time
@@ -749,7 +749,7 @@ def show_feature_importance_tracking():
     features = ['transaction_amount', 'transactions_24h', 'distance_from_home',
                 'merchant_category', 'transaction_hour']
 
-    st.markdown("#### 📈 Feature Importance Trends")
+    st.markdown('#### Feature Importance Trends")
 
     # Generate importance data
     importance_data = []
@@ -777,7 +777,7 @@ def show_feature_importance_tracking():
 
     # Current importance ranking
     st.markdown("---")
-    st.markdown("#### 🏆 Current Feature Ranking")
+    st.markdown('#### Current Feature Ranking")
 
     current_importance = importance_df[importance_df['date'] == importance_df['date'].max()]
     current_importance = current_importance.sort_values('importance', ascending=False)
@@ -790,7 +790,7 @@ def show_feature_importance_tracking():
 
     # Importance change
     st.markdown("---")
-    st.markdown("#### 📊 Importance Change (Last 30 Days)")
+    st.markdown('#### Importance Change (Last 30 Days)")
 
     first_day = importance_df[importance_df['date'] == importance_df['date'].min()]
     last_day = importance_df[importance_df['date'] == importance_df['date'].max()]

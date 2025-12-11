@@ -25,13 +25,13 @@ def show():
 
     # Create tabs
     tabs = st.tabs([
-        "📊 Performance Dashboard",
-        "🎯 Fraud Detection KPIs",
-        "📈 Performance Trends",
-        "🔍 Prediction Analysis",
-        "💰 Business Impact",
-        "⚠️ Model Health & Alerts",
-        "📉 Segment Performance"
+        "Performance Dashboard",
+        "Fraud Detection KPIs",
+        "Performance Trends",
+        "Prediction Analysis",
+        "Business Impact",
+        "Model Health & Alerts",
+        "Segment Performance"
     ])
 
     with tabs[0]:
@@ -82,7 +82,7 @@ def generate_performance_data():
 
 
 def show_performance_dashboard():
-    st.markdown("### 📊 Real-Time Performance Dashboard")
+    st.markdown('### Real-Time Performance Dashboard")
     st.markdown("Current model performance metrics and status")
 
     perf_data = st.session_state.model_performance_data
@@ -92,16 +92,16 @@ def show_performance_dashboard():
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        st.markdown("#### 📅 Time Period")
+        st.markdown('#### Time Period")
 
     with col2:
-        if st.button("🔄 Refresh Data"):
+        if st.button("Refresh Data"):
             st.session_state.model_performance_data = generate_performance_data()
             st.rerun()
 
     # Key metrics
     st.markdown("---")
-    st.markdown("#### 🎯 Current Performance Metrics")
+    st.markdown('#### Current Performance Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -137,7 +137,7 @@ def show_performance_dashboard():
 
     # Performance gauge charts
     st.markdown("---")
-    st.markdown("#### 📊 Performance Gauges")
+    st.markdown('#### Performance Gauges")
 
     col1, col2, col3 = st.columns(3)
 
@@ -155,7 +155,7 @@ def show_performance_dashboard():
 
     # Confusion Matrix
     st.markdown("---")
-    st.markdown("#### 🎯 Current Confusion Matrix")
+    st.markdown('#### Current Confusion Matrix")
 
     cm = np.array([
         [latest['true_negatives'], latest['false_positives']],
@@ -184,20 +184,20 @@ def show_performance_dashboard():
 
     # Model status
     st.markdown("---")
-    st.markdown("#### 🏥 Model Health Status")
+    st.markdown('#### Model Health Status")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        status = "🟢 Healthy" if latest['precision'] > 0.85 else "🟡 Degraded" if latest['precision'] > 0.75 else "🔴 Critical"
+        status = "HEALTHY" if latest['precision'] > 0.85 else "DEGRADED" if latest['precision'] > 0.75 else "CRITICAL"
         st.metric("Overall Status", status)
 
     with col2:
-        predictions_status = "🟢 Normal" if latest['total_predictions'] > 10000 else "🟡 Low"
+        predictions_status = "NORMAL" if latest['total_predictions'] > 10000 else "Low"
         st.metric("Prediction Volume", predictions_status)
 
     with col3:
-        drift_status = "🟢 Stable" if abs(delta_precision) < 2 else "🟡 Drifting"
+        drift_status = "STABLE" if abs(delta_precision) < 2 else "Drifting"
         st.metric("Performance Drift", drift_status)
 
     with col4:
@@ -218,11 +218,11 @@ def create_gauge_chart(value, title, threshold_low, threshold_high):
             'bar': {'color': "darkblue"},
             'steps': [
                 {'range': [0, threshold_low * 100], 'color': "lightgray"},
-                {'range': [threshold_low * 100, threshold_high * 100], 'color': "lightblue"},
-                {'range': [threshold_high * 100, 100], 'color': "lightgreen"}
+                {'range': [threshold_low * 100, threshold_high * 100], 'color': "#9b7fe8"},
+                {'range': [threshold_high * 100, 100], 'color': "#9b7fe8"}
             ],
             'threshold': {
-                'line': {'color': "red", 'width': 4},
+                'line': {'color': "#000000", 'width': 4},
                 'thickness': 0.75,
                 'value': threshold_high * 100
             }
@@ -234,14 +234,14 @@ def create_gauge_chart(value, title, threshold_low, threshold_high):
 
 
 def show_fraud_kpis():
-    st.markdown("### 🎯 Fraud Detection KPIs")
+    st.markdown('### Fraud Detection KPIs")
     st.markdown("Key performance indicators for fraud detection")
 
     perf_data = st.session_state.model_performance_data
     latest = perf_data.iloc[-1]
 
     # Primary KPIs
-    st.markdown("#### 📊 Primary Detection KPIs")
+    st.markdown('#### Primary Detection KPIs")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -270,7 +270,7 @@ def show_fraud_kpis():
 
     # Detection efficiency
     st.markdown("---")
-    st.markdown("#### ⚡ Detection Efficiency")
+    st.markdown('#### Detection Efficiency")
 
     col1, col2, col3 = st.columns(3)
 
@@ -289,7 +289,7 @@ def show_fraud_kpis():
 
     # KPI trends
     st.markdown("---")
-    st.markdown("#### 📈 KPI Trends (Last 30 Days)")
+    st.markdown('#### KPI Trends (Last 30 Days)")
 
     fig = make_subplots(
         rows=2, cols=2,
@@ -300,28 +300,28 @@ def show_fraud_kpis():
     # Fraud Detection Rate
     fig.add_trace(
         go.Scatter(x=perf_data['date'], y=perf_data['fraud_detection_rate'],
-                  mode='lines+markers', name='Detection Rate', line=dict(color='green')),
+                  mode='lines+markers', name='Detection Rate', line=dict(color='#744ada')),
         row=1, col=1
     )
 
     # False Positive Rate
     fig.add_trace(
         go.Scatter(x=perf_data['date'], y=perf_data['false_positive_rate'],
-                  mode='lines+markers', name='FP Rate', line=dict(color='red')),
+                  mode='lines+markers', name='FP Rate', line=dict(color='#000000')),
         row=1, col=2
     )
 
     # Precision
     fig.add_trace(
         go.Scatter(x=perf_data['date'], y=perf_data['precision'],
-                  mode='lines+markers', name='Precision', line=dict(color='blue')),
+                  mode='lines+markers', name='Precision', line=dict(color='#744ada')),
         row=2, col=1
     )
 
     # Recall
     fig.add_trace(
         go.Scatter(x=perf_data['date'], y=perf_data['recall'],
-                  mode='lines+markers', name='Recall', line=dict(color='purple')),
+                  mode='lines+markers', name='Recall', line=dict(color='#5a38ad')),
         row=2, col=2
     )
 
@@ -330,7 +330,7 @@ def show_fraud_kpis():
 
     # Detection breakdown
     st.markdown("---")
-    st.markdown("#### 🎯 Detection Breakdown")
+    st.markdown('#### Detection Breakdown")
 
     breakdown_data = pd.DataFrame({
         'Category': ['True Positives', 'False Positives', 'True Negatives', 'False Negatives'],
@@ -340,15 +340,15 @@ def show_fraud_kpis():
             int(latest['true_negatives']),
             int(latest['false_negatives'])
         ],
-        'Color': ['#2ecc71', '#e74c3c', '#3498db', '#f39c12']
+        'Color': ['#744ada', '#000000', '#744ada', '#f39c12']
     })
 
     fig = px.bar(breakdown_data, x='Category', y='Count',
                 color='Category',
                 color_discrete_map={
-                    'True Positives': '#2ecc71',
-                    'False Positives': '#e74c3c',
-                    'True Negatives': '#3498db',
+                    'True Positives': '#744ada',
+                    'False Positives': '#000000',
+                    'True Negatives': '#744ada',
                     'False Negatives': '#f39c12'
                 },
                 title='Detection Results Breakdown')
@@ -356,7 +356,7 @@ def show_fraud_kpis():
 
     # Performance targets
     st.markdown("---")
-    st.markdown("#### 🎯 Performance vs Targets")
+    st.markdown('#### Performance vs Targets")
 
     targets = {
         'Metric': ['Precision', 'Recall', 'F1-Score', 'Detection Rate'],
@@ -368,10 +368,10 @@ def show_fraud_kpis():
         ],
         'Target': ['90%', '85%', '87%', '85%'],
         'Status': [
-            '✅' if latest['precision'] >= 0.90 else '⚠️',
-            '✅' if latest['recall'] >= 0.85 else '⚠️',
-            '✅' if latest['f1_score'] >= 0.87 else '⚠️',
-            '✅' if latest['fraud_detection_rate'] >= 0.85 else '⚠️'
+            '' if latest['precision'] >= 0.90 else '',
+            '' if latest['recall'] >= 0.85 else '',
+            '' if latest['f1_score'] >= 0.87 else '',
+            '' if latest['fraud_detection_rate'] >= 0.85 else ''
         ]
     }
 
@@ -380,7 +380,7 @@ def show_fraud_kpis():
 
 
 def show_performance_trends():
-    st.markdown("### 📈 Performance Trends Analysis")
+    st.markdown('### Performance Trends Analysis")
     st.markdown("Analyze model performance trends over time")
 
     perf_data = st.session_state.model_performance_data
@@ -392,22 +392,22 @@ def show_performance_trends():
     data_filtered = perf_data.tail(days)
 
     # Main metrics trend
-    st.markdown("#### 📊 Core Metrics Trend")
+    st.markdown('#### Core Metrics Trend")
 
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['precision'],
                             mode='lines+markers', name='Precision',
-                            line=dict(color='blue', width=2)))
+                            line=dict(color='#744ada', width=2)))
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['recall'],
                             mode='lines+markers', name='Recall',
-                            line=dict(color='green', width=2)))
+                            line=dict(color='#744ada', width=2)))
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['f1_score'],
                             mode='lines+markers', name='F1-Score',
-                            line=dict(color='purple', width=2)))
+                            line=dict(color='#5a38ad', width=2)))
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['roc_auc'],
                             mode='lines+markers', name='ROC-AUC',
-                            line=dict(color='orange', width=2)))
+                            line=dict(color='#666666', width=2)))
 
     fig.update_layout(
         title='Model Performance Metrics Over Time',
@@ -421,7 +421,7 @@ def show_performance_trends():
 
     # Statistical summary
     st.markdown("---")
-    st.markdown("#### 📊 Statistical Summary")
+    st.markdown('#### Statistical Summary")
 
     col1, col2 = st.columns(2)
 
@@ -437,7 +437,7 @@ def show_performance_trends():
 
     # Rolling averages
     st.markdown("---")
-    st.markdown("#### 📈 Rolling Averages (7-day)")
+    st.markdown('#### Rolling Averages (7-day)")
 
     data_filtered['precision_ma'] = data_filtered['precision'].rolling(window=7, min_periods=1).mean()
     data_filtered['recall_ma'] = data_filtered['recall'].rolling(window=7, min_periods=1).mean()
@@ -447,17 +447,17 @@ def show_performance_trends():
     # Actual values
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['precision'],
                             mode='markers', name='Precision (actual)',
-                            marker=dict(color='lightblue')))
+                            marker=dict(color='#9b7fe8')))
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['precision_ma'],
                             mode='lines', name='Precision (7-day MA)',
-                            line=dict(color='blue', width=3)))
+                            line=dict(color='#744ada', width=3)))
 
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['recall'],
                             mode='markers', name='Recall (actual)',
-                            marker=dict(color='lightgreen')))
+                            marker=dict(color='#9b7fe8')))
     fig.add_trace(go.Scatter(x=data_filtered['date'], y=data_filtered['recall_ma'],
                             mode='lines', name='Recall (7-day MA)',
-                            line=dict(color='green', width=3)))
+                            line=dict(color='#744ada', width=3)))
 
     fig.update_layout(
         title='Actual vs Moving Average',
@@ -470,7 +470,7 @@ def show_performance_trends():
 
     # Performance degradation detection
     st.markdown("---")
-    st.markdown("#### ⚠️ Performance Degradation Analysis")
+    st.markdown("#### Performance Degradation Analysis")
 
     # Calculate trends
     recent_7 = data_filtered.tail(7)
@@ -483,7 +483,7 @@ def show_performance_trends():
         previous_avg = previous_7[metric].mean()
         change = ((recent_avg - previous_avg) / previous_avg) * 100
 
-        status = "🟢 Stable" if abs(change) < 2 else "🟡 Watch" if abs(change) < 5 else "🔴 Degrading"
+        status = "STABLE" if abs(change) < 2 else "Watch" if abs(change) < 5 else "Degrading"
 
         degradation_analysis.append({
             'Metric': metric.replace('_', ' ').title(),
@@ -498,7 +498,7 @@ def show_performance_trends():
 
 
 def show_prediction_analysis():
-    st.markdown("### 🔍 Prediction Analysis")
+    st.markdown('### Prediction Analysis")
     st.markdown("Analyze model predictions and confidence scores")
 
     # Generate sample prediction data
@@ -513,18 +513,18 @@ def show_prediction_analysis():
     pred_df['predicted_label'] = (pred_df['prediction_score'] > 0.5).astype(int)
 
     # Prediction score distribution
-    st.markdown("#### 📊 Prediction Score Distribution")
+    st.markdown('#### Prediction Score Distribution")
 
     fig = px.histogram(pred_df, x='prediction_score', color='true_label',
                       nbins=50, barmode='overlay',
                       title='Prediction Score Distribution by True Label',
-                      color_discrete_map={0: 'blue', 1: 'red'},
+                      color_discrete_map={0: '#744ada', 1: '#000000'},
                       labels={'true_label': 'True Label'})
     st.plotly_chart(fig, use_container_width=True)
 
     # Score calibration
     st.markdown("---")
-    st.markdown("#### 🎯 Prediction Calibration")
+    st.markdown('#### Prediction Calibration")
 
     # Bin predictions
     bins = np.linspace(0, 1, 11)
@@ -550,7 +550,7 @@ def show_prediction_analysis():
     fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
                             mode='lines',
                             name='Perfect Calibration',
-                            line=dict(dash='dash', color='gray')))
+                            line=dict(dash='dash', color='#666666')))
 
     fig.update_layout(
         title='Calibration Curve',
@@ -563,7 +563,7 @@ def show_prediction_analysis():
 
     # ROC Curve
     st.markdown("---")
-    st.markdown("#### 📉 ROC Curve")
+    st.markdown('#### ROC Curve")
 
     col1, col2 = st.columns(2)
 
@@ -576,10 +576,10 @@ def show_prediction_analysis():
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines',
                                 name=f'ROC Curve (AUC = {roc_auc_val:.3f})',
-                                line=dict(color='blue', width=2)))
+                                line=dict(color='#744ada', width=2)))
         fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode='lines',
                                 name='Random Classifier',
-                                line=dict(dash='dash', color='gray')))
+                                line=dict(dash='dash', color='#666666')))
 
         fig.update_layout(
             title='ROC Curve',
@@ -598,7 +598,7 @@ def show_prediction_analysis():
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=recall, y=precision, mode='lines',
                                 name='PR Curve',
-                                line=dict(color='green', width=2)))
+                                line=dict(color='#744ada', width=2)))
 
         fig.update_layout(
             title='Precision-Recall Curve',
@@ -611,7 +611,7 @@ def show_prediction_analysis():
 
     # Threshold analysis
     st.markdown("---")
-    st.markdown("#### 🎚️ Threshold Analysis")
+    st.markdown('#### Threshold Analysis")
 
     thresholds = np.linspace(0, 1, 21)
     threshold_metrics = []
@@ -655,11 +655,11 @@ def show_prediction_analysis():
 
 
 def show_business_impact():
-    st.markdown("### 💰 Business Impact Metrics")
+    st.markdown('### Business Impact Metrics")
     st.markdown("Financial and operational impact of fraud detection")
 
     # Business metrics
-    st.markdown("#### 💵 Financial Impact")
+    st.markdown('#### Financial Impact")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -683,7 +683,7 @@ def show_business_impact():
 
     # Monthly trends
     st.markdown("---")
-    st.markdown("#### 📈 Monthly Financial Trends")
+    st.markdown('#### Monthly Financial Trends")
 
     months = pd.date_range(end=datetime.now(), periods=12, freq='M')
     financial_data = pd.DataFrame({
@@ -700,11 +700,11 @@ def show_business_impact():
     fig = go.Figure()
 
     fig.add_trace(go.Bar(x=financial_data['month'], y=financial_data['fraud_prevented'],
-                        name='Fraud Prevented', marker_color='green'))
+                        name='Fraud Prevented', marker_color='#744ada'))
     fig.add_trace(go.Bar(x=financial_data['month'], y=-financial_data['false_decline_cost'],
-                        name='False Decline Cost', marker_color='red'))
+                        name='False Decline Cost', marker_color='#000000'))
     fig.add_trace(go.Bar(x=financial_data['month'], y=-financial_data['investigation_cost'],
-                        name='Investigation Cost', marker_color='orange'))
+                        name='Investigation Cost', marker_color='#666666'))
 
     fig.update_layout(
         title='Monthly Financial Impact',
@@ -718,7 +718,7 @@ def show_business_impact():
 
     # Operational metrics
     st.markdown("---")
-    st.markdown("#### ⚙️ Operational Metrics")
+    st.markdown('#### Operational Metrics")
 
     col1, col2, col3 = st.columns(3)
 
@@ -738,7 +738,7 @@ def show_business_impact():
 
     # Customer impact
     st.markdown("---")
-    st.markdown("#### 👥 Customer Impact")
+    st.markdown('#### Customer Impact")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -760,7 +760,7 @@ def show_business_impact():
 
     # Cost-benefit analysis
     st.markdown("---")
-    st.markdown("#### 📊 Cost-Benefit Analysis")
+    st.markdown('#### Cost-Benefit Analysis")
 
     cost_benefit = pd.DataFrame({
         'Category': ['Fraud Losses Prevented', 'False Positive Costs', 'Model Operating Costs',
@@ -770,7 +770,7 @@ def show_business_impact():
     })
 
     fig = px.bar(cost_benefit, x='Category', y='Amount', color='Type',
-                color_discrete_map={'Benefit': 'green', 'Cost': 'red'},
+                color_discrete_map={'Benefit': '#744ada', 'Cost': '#000000'},
                 title='Cost-Benefit Breakdown')
 
     st.plotly_chart(fig, use_container_width=True)
@@ -792,14 +792,14 @@ def show_business_impact():
 
 
 def show_model_health():
-    st.markdown("### ⚠️ Model Health & Alerts")
+    st.markdown("### Model Health & Alerts")
     st.markdown("Monitor model health and performance alerts")
 
     # Overall health score
-    st.markdown("#### 🏥 Overall Model Health")
+    st.markdown('#### Overall Model Health")
 
     health_score = np.random.uniform(85, 98)
-    health_status = "🟢 Healthy" if health_score > 90 else "🟡 Fair" if health_score > 75 else "🔴 Poor"
+    health_status = "HEALTHY" if health_score > 90 else "FAIR" if health_score > 75 else "Poor"
 
     col1, col2, col3 = st.columns([1, 1, 2])
 
@@ -814,15 +814,15 @@ def show_model_health():
 
     # Health components
     st.markdown("---")
-    st.markdown("#### 🔍 Health Components")
+    st.markdown('#### Health Components")
 
     components = [
-        {'Component': 'Performance', 'Score': 92, 'Status': '🟢 Good'},
-        {'Component': 'Data Quality', 'Score': 88, 'Status': '🟢 Good'},
-        {'Component': 'Prediction Volume', 'Score': 95, 'Status': '🟢 Good'},
-        {'Component': 'Latency', 'Score': 90, 'Status': '🟢 Good'},
-        {'Component': 'Error Rate', 'Score': 85, 'Status': '🟡 Fair'},
-        {'Component': 'Feature Drift', 'Score': 78, 'Status': '🟡 Fair'}
+        {'Component': 'Performance', 'Score': 92, 'Status': 'GOOD'},
+        {'Component': 'Data Quality', 'Score': 88, 'Status': 'GOOD'},
+        {'Component': 'Prediction Volume', 'Score': 95, 'Status': 'GOOD'},
+        {'Component': 'Latency', 'Score': 90, 'Status': 'GOOD'},
+        {'Component': 'Error Rate', 'Score': 85, 'Status': 'FAIR'},
+        {'Component': 'Feature Drift', 'Score': 78, 'Status': 'FAIR'}
     ]
 
     components_df = pd.DataFrame(components)
@@ -830,17 +830,17 @@ def show_model_health():
 
     # Active alerts
     st.markdown("---")
-    st.markdown("#### 🚨 Active Alerts")
+    st.markdown("#### Active Alerts")
 
     alerts = [
         {
-            'Severity': '🟡 Warning',
+            'Severity': 'Warning',
             'Alert': 'Performance Degradation',
             'Description': 'Precision dropped by 3% in last 48 hours',
             'Time': '2 hours ago'
         },
         {
-            'Severity': '🟡 Warning',
+            'Severity': 'Warning',
             'Alert': 'Feature Drift Detected',
             'Description': 'transaction_amount showing moderate drift (PSI: 0.18)',
             'Time': '5 hours ago'
@@ -861,11 +861,11 @@ def show_model_health():
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                if st.button("✅ Acknowledge", key=f"ack_{alert['Alert']}"):
+                if st.button("Acknowledge", key=f"ack_{alert['Alert']}"):
                     st.success("Alert acknowledged")
 
             with col2:
-                if st.button("🔍 Investigate", key=f"inv_{alert['Alert']}"):
+                if st.button("Investigate", key=f"inv_{alert['Alert']}"):
                     st.info("Opening investigation...")
 
             with col3:
@@ -874,7 +874,7 @@ def show_model_health():
 
     # Model retraining recommendations
     st.markdown("---")
-    st.markdown("#### 🔄 Retraining Recommendations")
+    st.markdown('#### Retraining Recommendations")
 
     col1, col2 = st.columns(2)
 
@@ -883,28 +883,28 @@ def show_model_health():
         st.metric("Days Since Last Training", days_since_training)
 
         if days_since_training > 30:
-            st.warning("⚠️ Model retraining recommended")
+            st.warning("Model retraining recommended")
         else:
-            st.success("✅ Model is recent")
+            st.success("Model is recent")
 
     with col2:
         performance_drift = 4.2
         st.metric("Performance Drift (%)", f"{performance_drift:.1f}%")
 
         if performance_drift > 5:
-            st.error("🔴 Significant drift - retraining required")
+            st.error("Significant drift - retraining required")
         elif performance_drift > 3:
-            st.warning("🟡 Moderate drift - schedule retraining")
+            st.warning("Moderate drift - schedule retraining")
         else:
-            st.success("🟢 Minimal drift")
+            st.success("Minimal drift")
 
 
 def show_segment_performance():
-    st.markdown("### 📉 Segment Performance Analysis")
+    st.markdown('### Segment Performance Analysis")
     st.markdown("Analyze model performance across different segments")
 
     # Performance by merchant category
-    st.markdown("#### 🏪 Performance by Merchant Category")
+    st.markdown('#### Performance by Merchant Category")
 
     categories = ['retail', 'online', 'groceries', 'gas_station', 'restaurant',
                  'gambling', 'crypto', 'electronics']
@@ -924,11 +924,11 @@ def show_segment_performance():
     fig = go.Figure()
 
     fig.add_trace(go.Bar(x=category_df['Category'], y=category_df['Precision'],
-                        name='Precision', marker_color='blue'))
+                        name='Precision', marker_color='#744ada'))
     fig.add_trace(go.Bar(x=category_df['Category'], y=category_df['Recall'],
-                        name='Recall', marker_color='green'))
+                        name='Recall', marker_color='#744ada'))
     fig.add_trace(go.Bar(x=category_df['Category'], y=category_df['F1-Score'],
-                        name='F1-Score', marker_color='purple'))
+                        name='F1-Score', marker_color='#5a38ad'))
 
     fig.update_layout(
         title='Performance by Merchant Category',
@@ -942,7 +942,7 @@ def show_segment_performance():
 
     # Performance by transaction amount
     st.markdown("---")
-    st.markdown("#### 💵 Performance by Transaction Amount")
+    st.markdown('#### Performance by Transaction Amount")
 
     amount_ranges = ['$0-$50', '$50-$100', '$100-$500', '$500-$1K', '$1K-$5K', '$5K+']
     amount_performance = pd.DataFrame({
@@ -956,13 +956,13 @@ def show_segment_performance():
 
     fig.add_trace(
         go.Scatter(x=amount_performance['Range'], y=amount_performance['Precision'],
-                  mode='lines+markers', name='Precision', line=dict(color='blue')),
+                  mode='lines+markers', name='Precision', line=dict(color='#744ada')),
         secondary_y=False
     )
 
     fig.add_trace(
         go.Scatter(x=amount_performance['Range'], y=amount_performance['Recall'],
-                  mode='lines+markers', name='Recall', line=dict(color='green')),
+                  mode='lines+markers', name='Recall', line=dict(color='#744ada')),
         secondary_y=False
     )
 
@@ -981,7 +981,7 @@ def show_segment_performance():
 
     # Performance by time of day
     st.markdown("---")
-    st.markdown("#### ⏰ Performance by Time of Day")
+    st.markdown('#### Performance by Time of Day")
 
     hours = list(range(0, 24))
     hourly_performance = pd.DataFrame({
@@ -994,13 +994,13 @@ def show_segment_performance():
 
     fig.add_trace(
         go.Scatter(x=hourly_performance['Hour'], y=hourly_performance['Precision'],
-                  mode='lines+markers', name='Precision', line=dict(color='blue')),
+                  mode='lines+markers', name='Precision', line=dict(color='#744ada')),
         secondary_y=False
     )
 
     fig.add_trace(
         go.Scatter(x=hourly_performance['Hour'], y=hourly_performance['Fraud Rate'],
-                  mode='lines+markers', name='Fraud Rate', line=dict(color='red')),
+                  mode='lines+markers', name='Fraud Rate', line=dict(color='#000000')),
         secondary_y=True
     )
 
@@ -1013,7 +1013,7 @@ def show_segment_performance():
 
     # Worst performing segments
     st.markdown("---")
-    st.markdown("#### ⚠️ Segments Requiring Attention")
+    st.markdown("#### Segments Requiring Attention")
 
     attention_segments = category_df.nsmallest(3, 'F1-Score')[['Category', 'Precision', 'Recall', 'F1-Score']]
     attention_segments['Recommendation'] = [

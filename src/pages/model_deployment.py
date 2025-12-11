@@ -28,8 +28,8 @@ def show():
         st.session_state.inference_history = []
 
     # Create tabs
-    tabs = st.tabs(["📦 Model Registry", "🚀 Deploy Model", "🔮 Real-Time Inference",
-                   "📊 Model Monitoring", "⚙️ Model Management"])
+    tabs = st.tabs(["📦 Model Registry", "Deploy Model", "Real-Time Inference",
+                   "Model Monitoring", "Model Management"])
 
     with tabs[0]:
         show_model_registry()
@@ -128,10 +128,10 @@ def show_model_registry():
     st.markdown("---")
 
     # Model cards
-    st.markdown("#### 🎯 Registered Models")
+    st.markdown('#### Registered Models")
 
     for model in deployed_models:
-        with st.expander(f"🤖 {model['name']} - {model['status']}", expanded=(model['status'] == 'Active')):
+        with st.expander(f"{model['name']} - {model['status']}", expanded=(model['status'] == 'Active')):
             col1, col2, col3 = st.columns([2, 2, 1])
 
             with col1:
@@ -175,30 +175,30 @@ def show_model_registry():
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                if st.button(f"📊 View Details", key=f"details_{model['model_id']}"):
+                if st.button(f"View Details", key=f"details_{model['model_id']}"):
                     st.info("Model details view")
 
             with col2:
-                if st.button(f"🧪 Test Model", key=f"test_{model['model_id']}"):
+                if st.button(f"Test Model", key=f"test_{model['model_id']}"):
                     st.info("Model testing interface")
 
             with col3:
                 if model['status'] == 'Active':
-                    if st.button(f"⏸️ Deactivate", key=f"deactivate_{model['model_id']}"):
+                    if st.button(f"⏸Deactivate", key=f"deactivate_{model['model_id']}"):
                         model['status'] = 'Inactive'
                         st.success("Model deactivated")
                 else:
-                    if st.button(f"▶️ Activate", key=f"activate_{model['model_id']}"):
+                    if st.button(f"▶Activate", key=f"activate_{model['model_id']}"):
                         model['status'] = 'Active'
                         st.success("Model activated")
 
             with col4:
-                if st.button(f"🗑️ Remove", key=f"remove_{model['model_id']}"):
+                if st.button(f"🗑Remove", key=f"remove_{model['model_id']}"):
                     st.warning("Model removal (requires confirmation)")
 
     # Upload new model
     st.markdown("---")
-    st.markdown("#### ⬆️ Upload New Model")
+    st.markdown("#### ⬆Upload New Model")
 
     with st.expander("Upload Model", expanded=False):
         col1, col2 = st.columns(2)
@@ -215,22 +215,22 @@ def show_model_registry():
                                             type=['pkl', 'joblib', 'h5'])
             description = st.text_area("Description:", height=100)
 
-        if st.button("📤 Upload Model", type="primary"):
+        if st.button("Upload Model", type="primary"):
             if model_name and uploaded_file:
-                st.success(f"✅ Model '{model_name}' uploaded successfully!")
+                st.success(f"Model '{model_name}' uploaded successfully!")
             else:
                 st.error("Please provide model name and file")
 
 
 def show_model_deployment():
-    st.markdown("### 🚀 Deploy Model")
+    st.markdown('### Deploy Model")
     st.markdown("Deploy models to production or testing environments")
 
     # Check if models exist in training session
     if 'models' in st.session_state and len(st.session_state.models) > 0:
-        st.info("✅ Found trained models from Data Science Workflow")
+        st.info("Found trained models from Data Science Workflow")
 
-        st.markdown("#### 📋 Available Models for Deployment")
+        st.markdown('#### Available Models for Deployment")
 
         available_models = list(st.session_state.models.keys())
         selected_model_name = st.selectbox("Select model to deploy:", available_models)
@@ -239,7 +239,7 @@ def show_model_deployment():
             model = st.session_state.models[selected_model_name]
 
             st.markdown("---")
-            st.markdown("#### ⚙️ Deployment Configuration")
+            st.markdown('#### Deployment Configuration")
 
             col1, col2 = st.columns(2)
 
@@ -273,7 +273,7 @@ def show_model_deployment():
 
             # Deployment preview
             st.markdown("---")
-            st.markdown("#### 📋 Deployment Summary")
+            st.markdown('#### Deployment Summary")
 
             deployment_config = {
                 "Model": selected_model_name,
@@ -293,7 +293,7 @@ def show_model_deployment():
             col1, col2, col3 = st.columns([1, 1, 2])
 
             with col1:
-                if st.button("🚀 Deploy Model", type="primary"):
+                if st.button("Deploy Model", type="primary"):
                     with st.spinner("Deploying model..."):
                         # Simulate deployment
                         import time
@@ -334,21 +334,21 @@ def show_model_deployment():
                         st.session_state.deployed_models.append(new_model)
 
                         st.success(f"""
-                            ✅ Model deployed successfully!
+                            Model deployed successfully!
                             - Endpoint: {new_model['endpoint']}
                             - Status: {new_model['status']}
                             - Environment: {environment}
                         """)
 
             with col2:
-                if st.button("🧪 Test Deployment"):
+                if st.button("Test Deployment"):
                     st.info("Running deployment tests...")
 
     else:
-        st.warning("⚠️ No trained models available. Please train models in the 'Data Science Workflow' tab first.")
+        st.warning("No trained models available. Please train models in the 'Data Science Workflow' tab first.")
 
         st.markdown("---")
-        st.markdown("#### 💡 Quick Deploy - Pre-trained Models")
+        st.markdown('#### Quick Deploy - Pre-trained Models")
 
         st.info("You can also deploy pre-trained models from the Model Registry")
 
@@ -357,18 +357,18 @@ def show_model_deployment():
 
 
 def show_realtime_inference():
-    st.markdown("### 🔮 Real-Time Inference")
+    st.markdown('### Real-Time Inference")
     st.markdown("Test models with real-time predictions")
 
     # Check if models are deployed
     active_models = [m for m in st.session_state.deployed_models if m['status'] == 'Active']
 
     if len(active_models) == 0:
-        st.warning("⚠️ No active models available. Please deploy a model first.")
+        st.warning("No active models available. Please deploy a model first.")
         return
 
     # Model selection
-    st.markdown("#### 1️⃣ Select Model")
+    st.markdown("#### 1⃣ Select Model")
 
     selected_model_name = st.selectbox(
         "Choose model:",
@@ -390,7 +390,7 @@ def show_realtime_inference():
 
     # Input method
     st.markdown("---")
-    st.markdown("#### 2️⃣ Input Transaction Data")
+    st.markdown("#### 2⃣ Input Transaction Data")
 
     input_method = st.radio("Input Method:", ["Manual Entry", "JSON Input", "Batch Upload", "Live Stream"])
 
@@ -409,7 +409,7 @@ def show_realtime_inference():
     # Inference history
     if len(st.session_state.inference_history) > 0:
         st.markdown("---")
-        st.markdown("#### 📊 Recent Predictions")
+        st.markdown('#### Recent Predictions")
 
         history_df = pd.DataFrame(st.session_state.inference_history[-10:][::-1])
         st.dataframe(history_df, use_container_width=True, hide_index=True)
@@ -445,7 +445,7 @@ def show_manual_input(model):
         device_type = st.selectbox("Device Type:", ["Desktop", "Mobile", "Tablet"])
         new_device = st.checkbox("New Device")
 
-    if st.button("🔮 Predict", type="primary"):
+    if st.button("Predict", type="primary"):
         with st.spinner("Running prediction..."):
             # Simulate prediction
             import time
@@ -457,7 +457,7 @@ def show_manual_input(model):
 
             # Display result
             st.markdown("---")
-            st.markdown("#### 🎯 Prediction Result")
+            st.markdown('#### Prediction Result")
 
             col1, col2, col3 = st.columns(3)
 
@@ -465,7 +465,7 @@ def show_manual_input(model):
                 st.metric("Fraud Probability", f"{fraud_score:.2%}")
 
             with col2:
-                prediction_label = "🚨 FRAUD" if is_fraud else "✅ LEGITIMATE"
+                prediction_label = "FRAUD" if is_fraud else "LEGITIMATE"
                 st.metric("Prediction", prediction_label)
 
             with col3:
@@ -474,7 +474,7 @@ def show_manual_input(model):
 
             # Risk factors
             if is_fraud:
-                st.markdown("#### ⚠️ Risk Factors")
+                st.markdown("#### Risk Factors")
                 risk_factors = []
 
                 if transaction_amount > 1000:
@@ -489,7 +489,7 @@ def show_manual_input(model):
                     risk_factors.append(f"Large distance from home: {distance_from_home:.0f} km")
 
                 for factor in risk_factors[:5]:
-                    st.warning(f"⚠️ {factor}")
+                    st.warning(f"{factor}")
 
             # Add to history
             st.session_state.inference_history.append({
@@ -525,24 +525,24 @@ def show_json_input(model):
     col1, col2 = st.columns([1, 3])
 
     with col1:
-        if st.button("🔮 Predict", type="primary"):
+        if st.button("Predict", type="primary"):
             try:
                 data = json.loads(json_input)
-                st.success("✅ Valid JSON - Processing prediction...")
+                st.success("Valid JSON - Processing prediction...")
 
                 # Simulate prediction
                 fraud_score = np.random.uniform(0.1, 0.95)
                 is_fraud = fraud_score > 0.5
 
-                st.markdown("#### 🎯 Prediction Result")
+                st.markdown('#### Prediction Result")
                 st.metric("Fraud Probability", f"{fraud_score:.2%}")
-                st.metric("Prediction", "🚨 FRAUD" if is_fraud else "✅ LEGITIMATE")
+                st.metric("Prediction", "FRAUD" if is_fraud else "LEGITIMATE")
 
             except json.JSONDecodeError:
-                st.error("❌ Invalid JSON format")
+                st.error("Invalid JSON format")
 
     with col2:
-        if st.button("📋 Use Sample JSON"):
+        if st.button("Use Sample JSON"):
             st.info("Sample JSON loaded")
 
 
@@ -558,7 +558,7 @@ def show_batch_upload(model):
         st.markdown(f"**Loaded {len(df)} transactions**")
         st.dataframe(df.head(10), use_container_width=True)
 
-        if st.button("🚀 Run Batch Predictions", type="primary"):
+        if st.button("Run Batch Predictions", type="primary"):
             with st.spinner(f"Processing {len(df)} transactions..."):
                 # Simulate batch prediction
                 import time
@@ -583,7 +583,7 @@ def show_batch_upload(model):
                 results_df['fraud_score'] = [p['fraud_score'] for p in predictions]
                 results_df['prediction'] = [p['prediction'] for p in predictions]
 
-                st.success(f"✅ Batch predictions completed!")
+                st.success(f"Batch predictions completed!")
 
                 # Summary
                 col1, col2, col3 = st.columns(3)
@@ -601,13 +601,13 @@ def show_batch_upload(model):
                     st.metric("Avg Fraud Score", f"{avg_score:.2%}")
 
                 # Display results
-                st.markdown("#### 📊 Prediction Results")
+                st.markdown('#### Prediction Results")
                 st.dataframe(results_df, use_container_width=True)
 
                 # Download button
                 csv = results_df.to_csv(index=False)
                 st.download_button(
-                    label="📥 Download Results",
+                    label="Download Results",
                     data=csv,
                     file_name=f"predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
@@ -626,8 +626,8 @@ def show_live_stream(model):
     with col2:
         duration = st.number_input("Duration (seconds):", 5, 60, 10)
 
-    if st.button("▶️ Start Stream", type="primary"):
-        st.markdown("#### 🔴 Live Stream")
+    if st.button("Start Stream", type="primary"):
+        st.markdown("#### Live Stream")
 
         stream_placeholder = st.empty()
         metrics_placeholder = st.empty()
@@ -649,7 +649,7 @@ def show_live_stream(model):
                     'Time': datetime.now().strftime('%H:%M:%S.%f')[:-3],
                     'Amount': f"${np.random.uniform(10, 5000):,.2f}",
                     'Score': f"{fraud_score:.2%}",
-                    'Result': '🚨 Fraud' if is_fraud else '✅ Legit'
+                    'Result': 'Fraud' if is_fraud else 'Legit'
                 })
 
                 total_processed += 1
@@ -678,18 +678,18 @@ def show_live_stream(model):
 
             time.sleep(1)
 
-        st.success(f"✅ Stream completed! Processed {total_processed} transactions")
+        st.success(f"Stream completed! Processed {total_processed} transactions")
 
 
 def show_model_monitoring():
-    st.markdown("### 📊 Model Monitoring")
+    st.markdown('### Model Monitoring")
     st.markdown("Monitor model performance and health")
 
     # Select model
     active_models = [m for m in st.session_state.deployed_models if m['status'] == 'Active']
 
     if len(active_models) == 0:
-        st.warning("⚠️ No active models to monitor")
+        st.warning("No active models to monitor")
         return
 
     selected_model_name = st.selectbox(
@@ -706,12 +706,12 @@ def show_model_monitoring():
         time_range = st.selectbox("Time Range:", ["Last Hour", "Last 24 Hours", "Last 7 Days", "Last 30 Days"])
 
     with col2:
-        refresh = st.button("🔄 Refresh")
+        refresh = st.button("Refresh")
 
     st.markdown("---")
 
     # Performance metrics
-    st.markdown("#### 📈 Performance Metrics")
+    st.markdown('#### Performance Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -734,7 +734,7 @@ def show_model_monitoring():
 
     # Charts
     st.markdown("---")
-    st.markdown("#### 📊 Monitoring Charts")
+    st.markdown('#### Monitoring Charts")
 
     # Generate sample data
     hours = pd.date_range(end=datetime.now(), periods=24, freq='H')
@@ -777,7 +777,7 @@ def show_model_monitoring():
 
         fig = px.pie(pred_dist, values='Count', names='Prediction',
                     title='Prediction Distribution',
-                    color_discrete_map={'Legitimate': '#2ecc71', 'Fraud': '#e74c3c'})
+                    color_discrete_map={'Legitimate': '#744ada', 'Fraud': '#000000'})
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -794,7 +794,7 @@ def show_model_monitoring():
 
     # Model health
     st.markdown("---")
-    st.markdown("#### 🏥 Model Health")
+    st.markdown('#### Model Health")
 
     health_metrics = pd.DataFrame({
         'Component': ['API Endpoint', 'Model Server', 'Database', 'Cache', 'Load Balancer'],
@@ -816,7 +816,7 @@ def show_model_monitoring():
 
     # Alerts
     st.markdown("---")
-    st.markdown("#### 🚨 Recent Alerts")
+    st.markdown("#### Recent Alerts")
 
     alerts = [
         {'Time': '10 min ago', 'Severity': 'Warning', 'Message': 'Cache response time elevated'},
@@ -829,13 +829,13 @@ def show_model_monitoring():
 
 
 def show_model_management():
-    st.markdown("### ⚙️ Model Management")
+    st.markdown('### Model Management")
     st.markdown("Manage deployed models and configurations")
 
     deployed_models = st.session_state.deployed_models
 
     if len(deployed_models) == 0:
-        st.warning("⚠️ No deployed models")
+        st.warning("No deployed models")
         return
 
     # Select model
@@ -848,29 +848,29 @@ def show_model_management():
 
     # Model actions
     st.markdown("---")
-    st.markdown("#### ⚡ Quick Actions")
+    st.markdown('#### Quick Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("🔄 Update Model"):
+        if st.button("Update Model"):
             st.info("Model update wizard")
 
     with col2:
-        if st.button("⏸️ Pause Model"):
+        if st.button("Pause Model"):
             st.warning("Model paused")
 
     with col3:
-        if st.button("📊 Export Metrics"):
+        if st.button("Export Metrics"):
             st.success("Metrics exported")
 
     with col4:
-        if st.button("🗑️ Delete Model"):
+        if st.button("Delete Model"):
             st.error("Delete confirmation required")
 
     # Configuration
     st.markdown("---")
-    st.markdown("#### ⚙️ Model Configuration")
+    st.markdown('#### Model Configuration")
 
     with st.expander("Scaling Configuration", expanded=True):
         col1, col2 = st.columns(2)
@@ -905,8 +905,8 @@ def show_model_management():
             notification_email = st.text_input("Notification Email:")
             slack_webhook = st.text_input("Slack Webhook URL:")
 
-    if st.button("💾 Save Configuration", type="primary"):
-        st.success("✅ Configuration saved successfully!")
+    if st.button("Save Configuration", type="primary"):
+        st.success("Configuration saved successfully!")
 
     # Version history
     st.markdown("---")
@@ -923,7 +923,7 @@ def show_model_management():
     st.dataframe(versions, use_container_width=True, hide_index=True)
 
     # Rollback option
-    st.markdown("#### 🔄 Rollback")
+    st.markdown('#### Rollback")
 
     col1, col2 = st.columns([2, 1])
 
@@ -931,5 +931,5 @@ def show_model_management():
         rollback_version = st.selectbox("Select version to rollback to:", versions['Version'].tolist()[1:])
 
     with col2:
-        if st.button("⬅️ Rollback", type="secondary"):
+        if st.button("⬅Rollback", type="secondary"):
             st.warning(f"Rollback to version {rollback_version} requires confirmation")

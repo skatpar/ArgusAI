@@ -26,7 +26,7 @@ def show():
         st.session_state.selected_case = None
 
     # Create tabs
-    tabs = st.tabs(["📋 Case Dashboard", "🔍 Case Investigation", "📊 Case Analytics", "⚙️ Case Workflow"])
+    tabs = st.tabs(["Case Dashboard", "Case Investigation", "Case Analytics", "Case Workflow"])
 
     with tabs[0]:
         show_case_dashboard()
@@ -76,13 +76,13 @@ def generate_sample_cases():
 
 
 def show_case_dashboard():
-    st.markdown("### 📋 Case Dashboard")
+    st.markdown('### Case Dashboard")
     st.markdown("Overview of all fraud investigation cases")
 
     cases_df = st.session_state.cases
 
     # Metrics
-    st.markdown("#### 📊 Key Metrics")
+    st.markdown('#### Key Metrics")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -109,7 +109,7 @@ def show_case_dashboard():
 
     # Filters
     st.markdown("---")
-    st.markdown("#### 🔍 Filter Cases")
+    st.markdown('#### Filter Cases")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -150,7 +150,7 @@ def show_case_dashboard():
     ]
 
     # Search
-    search_term = st.text_input("🔍 Search cases (Case ID, Transaction ID, Customer ID):")
+    search_term = st.text_input("Search cases (Case ID, Transaction ID, Customer ID):")
 
     if search_term:
         filtered_cases = filtered_cases[
@@ -204,7 +204,7 @@ def show_case_dashboard():
 
     # Quick actions
     st.markdown("---")
-    st.markdown("#### ⚡ Quick Actions")
+    st.markdown('#### Quick Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -212,21 +212,21 @@ def show_case_dashboard():
         selected_case_id = st.selectbox("Select Case:", filtered_cases['case_id'].tolist())
 
     with col2:
-        if st.button("🔍 Investigate", type="primary"):
+        if st.button("Investigate", type="primary"):
             st.session_state.selected_case = selected_case_id
             st.success(f"Case {selected_case_id} selected for investigation. Go to 'Case Investigation' tab.")
 
     with col3:
-        if st.button("📝 Add Note"):
+        if st.button("Add Note"):
             st.info("Note dialog would open here")
 
     with col4:
-        if st.button("✅ Close Case"):
+        if st.button("Close Case"):
             st.info("Close case dialog would open here")
 
     # Visualizations
     st.markdown("---")
-    st.markdown("#### 📊 Case Visualizations")
+    st.markdown('#### Case Visualizations")
 
     col1, col2 = st.columns(2)
 
@@ -250,7 +250,7 @@ def show_case_dashboard():
 
 
 def show_case_investigation():
-    st.markdown("### 🔍 Case Investigation")
+    st.markdown('### Case Investigation")
     st.markdown("Detailed investigation of suspicious transactions")
 
     if st.session_state.selected_case is None:
@@ -264,7 +264,7 @@ def show_case_investigation():
             st.markdown("#### Quick Select")
             case_id = st.selectbox("Select a case:", open_cases['case_id'].tolist())
 
-            if st.button("🔍 Load Case"):
+            if st.button("Load Case"):
                 st.session_state.selected_case = case_id
                 st.rerun()
 
@@ -287,14 +287,14 @@ def show_case_investigation():
                                  index=0)
 
     with col3:
-        if st.button("💾 Update Status"):
+        if st.button("Update Status"):
             st.session_state.cases.loc[st.session_state.cases['case_id'] == case_id, 'status'] = new_status
             st.success(f"Status updated to: {new_status}")
 
     st.markdown("---")
 
     # Case overview
-    st.markdown("### 📋 Case Overview")
+    st.markdown('### Case Overview")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -351,7 +351,7 @@ def show_case_investigation():
 
     # Triggered rules
     st.markdown("---")
-    st.markdown("### 🚨 Triggered Rules")
+    st.markdown("### Triggered Rules")
 
     triggered_rules = case_data['triggered_rules'].split(', ')
 
@@ -396,7 +396,7 @@ def show_case_investigation():
 
     # Timeline visualization
     st.markdown("---")
-    st.markdown("### 📅 Transaction Timeline")
+    st.markdown('### Transaction Timeline")
 
     # Create sample timeline data
     timeline_data = pd.DataFrame({
@@ -409,14 +409,14 @@ def show_case_investigation():
                  labels={'timestamp': 'Time', 'amount': 'Amount ($)'})
 
     # Highlight suspicious transaction
-    fig.add_vline(x=case_data['created_date'], line_dash="dash", line_color="red",
+    fig.add_vline(x=case_data['created_date'], line_dash="dash", line_color="#000000",
                  annotation_text="Flagged Transaction")
 
     st.plotly_chart(fig, use_container_width=True)
 
     # Evidence and Notes
     st.markdown("---")
-    st.markdown("### 📝 Investigation Notes")
+    st.markdown('### Investigation Notes")
 
     col1, col2 = st.columns([3, 1])
 
@@ -425,7 +425,7 @@ def show_case_investigation():
 
     with col2:
         note_category = st.selectbox("Category:", ["General", "Evidence", "Follow-up", "Resolution"])
-        if st.button("💾 Save Note", type="primary"):
+        if st.button("Save Note", type="primary"):
             if new_note:
                 st.success("Note saved successfully")
 
@@ -441,35 +441,35 @@ def show_case_investigation():
 
     # Actions
     st.markdown("---")
-    st.markdown("### ⚡ Case Actions")
+    st.markdown('### Case Actions")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("✅ Mark as Fraud", type="primary"):
+        if st.button("Mark as Fraud", type="primary"):
             st.success("Case marked as confirmed fraud")
 
     with col2:
-        if st.button("❌ Mark as Legitimate"):
+        if st.button("Mark as Legitimate"):
             st.success("Case marked as legitimate")
 
     with col3:
-        if st.button("⬆️ Escalate Case"):
+        if st.button("Escalate Case"):
             st.warning("Case escalated to senior analyst")
 
     with col4:
-        if st.button("🔄 Request More Info"):
+        if st.button("Request More Info"):
             st.info("Information request sent")
 
 
 def show_case_analytics():
-    st.markdown("### 📊 Case Analytics")
+    st.markdown('### Case Analytics")
     st.markdown("Analyze case trends and performance")
 
     cases_df = st.session_state.cases
 
     # Time range selector
-    st.markdown("#### 📅 Time Range")
+    st.markdown('#### Time Range")
 
     col1, col2 = st.columns(2)
 
@@ -481,7 +481,7 @@ def show_case_analytics():
 
     # Case trends
     st.markdown("---")
-    st.markdown("#### 📈 Case Trends")
+    st.markdown('#### Case Trends")
 
     # Generate daily case counts
     date_range = pd.date_range(start=start_date, end=end_date, freq='D')
@@ -502,7 +502,7 @@ def show_case_analytics():
 
     # Performance metrics
     st.markdown("---")
-    st.markdown("#### ⏱️ Performance Metrics")
+    st.markdown("#### ⏱Performance Metrics")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -524,7 +524,7 @@ def show_case_analytics():
 
     # Analyst performance
     st.markdown("---")
-    st.markdown("#### 👥 Analyst Performance")
+    st.markdown('#### Analyst Performance")
 
     analyst_perf = pd.DataFrame({
         'Analyst': ['Analyst A', 'Analyst B', 'Analyst C'],
@@ -540,7 +540,7 @@ def show_case_analytics():
 
     # Case distribution
     st.markdown("---")
-    st.markdown("#### 📊 Case Distribution")
+    st.markdown('#### Case Distribution")
 
     col1, col2 = st.columns(2)
 
@@ -561,10 +561,10 @@ def show_case_analytics():
 
 
 def show_case_workflow():
-    st.markdown("### ⚙️ Case Workflow Configuration")
+    st.markdown('### Case Workflow Configuration")
     st.markdown("Configure case management workflows and automation")
 
-    st.markdown("#### 🔄 Workflow Stages")
+    st.markdown('#### Workflow Stages")
 
     workflow_stages = [
         {'Stage': 'New', 'Description': 'Case created', 'Auto-assign': True, 'SLA (hours)': 1},
@@ -578,7 +578,7 @@ def show_case_workflow():
     st.dataframe(workflow_df, use_container_width=True, hide_index=True)
 
     st.markdown("---")
-    st.markdown("#### 🤖 Automation Rules")
+    st.markdown('#### Automation Rules")
 
     with st.expander("Auto-assignment Rules", expanded=True):
         st.markdown("**Configure automatic case assignment:**")
@@ -621,11 +621,11 @@ def show_case_workflow():
                                              ["Email", "SMS", "Slack", "In-App"],
                                              default=["Email", "In-App"])
 
-    if st.button("💾 Save Workflow Configuration", type="primary"):
-        st.success("✅ Workflow configuration saved successfully!")
+    if st.button("Save Workflow Configuration", type="primary"):
+        st.success("Workflow configuration saved successfully!")
 
     st.markdown("---")
-    st.markdown("#### 📋 SLA Monitoring")
+    st.markdown('#### SLA Monitoring")
 
     sla_data = pd.DataFrame({
         'Priority': ['Critical', 'High', 'Medium', 'Low'],
