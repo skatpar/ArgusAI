@@ -302,9 +302,20 @@ def show_custom_query():
     st.markdown("**Sample Queries:**")
     sample_queries = {
         "Load all data (limit 10K)": "SELECT * FROM stixor_fraud_features_distributed LIMIT 10000",
-        "Load recent data": "SELECT * FROM stixor_fraud_features_distributed WHERE timestamp >= today() - 30 LIMIT 10000",
-        "Load fraud cases only": "SELECT * FROM stixor_fraud_features_distributed WHERE is_fraud = 1 LIMIT 10000",
-        "Load by date range": "SELECT * FROM stixor_fraud_features_distributed WHERE timestamp BETWEEN '2025-01-01' AND '2025-12-31' LIMIT 50000",
+        "Load by date range with filters": """SELECT * FROM stixor_fraud_features_distributed
+WHERE cutoff_date BETWEEN '2025-01-01' AND '2025-12-31'
+    AND mbar_account_type_name = 'Customer Account'
+    AND trx_channel='Payment Gateway'
+    AND trx_type='Online Payment'
+    AND ac_to IS NOT NULL
+    AND ac_to<>''
+    AND start_balance<>end_balance
+LIMIT 50000""",
+        "Load fraud cases only": "SELECT * FROM stixor_fraud_features_distributed WHERE fraud_flag = 1 LIMIT 10000",
+        "Load payment gateway transactions": """SELECT * FROM stixor_fraud_features_distributed
+WHERE trx_channel='Payment Gateway'
+    AND cutoff_date >= today() - 30
+LIMIT 10000""",
         "Custom query": ""
     }
 

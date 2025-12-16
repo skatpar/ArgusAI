@@ -595,7 +595,7 @@ def show_custom_script_training():
         st.info(f"Found {len(available_features)} features in loaded data")
 
         # Auto-detect target column
-        possible_targets = ['is_fraud', 'fraud', 'label', 'target', 'y']
+        possible_targets = ['fraud_flag', 'is_fraud', 'fraud', 'label', 'target', 'y']
         detected_target = None
         for target in possible_targets:
             if target in available_features:
@@ -606,7 +606,8 @@ def show_custom_script_training():
 
         with col1:
             # Exclude columns that shouldn't be features
-            exclude_cols = ['transaction_id', 'id', 'timestamp', 'date']
+            exclude_cols = ['transaction_id', 'id', 'timestamp', 'date', 'cutoff_date',
+                           'mbar_account_type_name', 'ac_to', 'ac_from', 'end_balance']
             if detected_target:
                 exclude_cols.append(detected_target)
 
@@ -774,12 +775,18 @@ def show_builtin_training():
 
     df = st.session_state.loaded_data
 
-    # Check required columns
-    if 'is_fraud' not in df.columns:
-        st.error("Dataset must contain 'is_fraud' column")
+    # Check required columns - support both fraud_flag and is_fraud
+    target_col = None
+    if 'fraud_flag' in df.columns:
+        target_col = 'fraud_flag'
+    elif 'is_fraud' in df.columns:
+        target_col = 'is_fraud'
+    else:
+        st.error("Dataset must contain 'fraud_flag' or 'is_fraud' column")
         return
 
     st.success(f"Using data: {st.session_state.get('data_source')} ({len(df):,} rows)")
+    st.info(f"Target column: **{target_col}**")
 
     st.markdown("---")
 
@@ -787,12 +794,12 @@ def show_builtin_training():
     st.markdown("#### Feature Selection")
 
     all_cols = df.columns.tolist()
-    all_cols.remove('is_fraud')
+    all_cols.remove(target_col)
 
     # Remove non-numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if 'is_fraud' in numeric_cols:
-        numeric_cols.remove('is_fraud')
+    if target_col in numeric_cols:
+        numeric_cols.remove(target_col)
 
     selected_features = st.multiselect(
         "Select Features:",
@@ -843,7 +850,7 @@ def show_builtin_training():
 
                 # Prepare data
                 X = df[selected_features]
-                y = df['is_fraud']
+                y = df[target_col]
 
                 X_train, X_test, y_train, y_test = train_test_split(
                     X, y, test_size=test_size, random_state=42, stratify=y

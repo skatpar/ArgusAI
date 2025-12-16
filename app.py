@@ -172,8 +172,8 @@ with st.sidebar:
 
     selected = option_menu(
         menu_title=None,
-        options=["Data Loading", "Model Training", "Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Real-time Inference", "Model Deployment"],
-        icons=["database", "gear-fill", "graph-up-arrow", "activity", "shield-check", "folder-open", "lightning-fill", "cpu"],
+        options=["Data Loading", "Feature Monitoring", "Model Training", "Real-time Inference", "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management"],
+        icons=["database", "graph-up-arrow", "gear-fill", "lightning-fill", "activity", "cpu", "shield-check", "folder-open"],
         menu_icon=None,
         default_index=0,
         styles={
