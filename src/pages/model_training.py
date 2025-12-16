@@ -11,7 +11,10 @@ import subprocess
 import json
 import sys
 import os
+import yaml
 sys.path.append('/home/user/ArgusAI')
+
+from src.utils.config_manager import config_manager
 
 
 def show():
@@ -25,8 +28,12 @@ def show():
     if 'current_model' not in st.session_state:
         st.session_state.current_model = None
 
+    if 'training_config' not in st.session_state:
+        st.session_state.training_config = config_manager.load_config()
+
     # Create tabs
     tabs = st.tabs([
+        "Configuration",
         "Custom Training Script",
         "Built-in Training",
         "Training History",
@@ -34,62 +41,487 @@ def show():
     ])
 
     with tabs[0]:
-        show_custom_script_training()
+        show_configuration()
 
     with tabs[1]:
-        show_builtin_training()
+        show_custom_script_training()
 
     with tabs[2]:
-        show_training_history()
+        show_builtin_training()
 
     with tabs[3]:
+        show_training_history()
+
+    with tabs[4]:
         show_model_comparison()
+
+
+def show_configuration():
+    """Global training configuration management"""
+    st.markdown("### Training Configuration")
+    st.markdown("Manage global configuration for data loading, model training, and artifact saving")
+
+    config = st.session_state.training_config
+
+    # Configuration sections
+    config_section = st.radio(
+        "Configuration Section:",
+        ["Data Source", "Model Settings", "Training Scripts", "Artifacts & Saving", "View/Edit YAML"],
+        horizontal=True
+    )
+
+    st.markdown("---")
+
+    if config_section == "Data Source":
+        show_data_source_config(config)
+    elif config_section == "Model Settings":
+        show_model_settings_config(config)
+    elif config_section == "Training Scripts":
+        show_scripts_config(config)
+    elif config_section == "Artifacts & Saving":
+        show_artifacts_config(config)
+    else:
+        show_yaml_config(config)
+
+
+def show_data_source_config(config):
+    """Configure data source settings"""
+    st.markdown("#### Data Source Configuration")
+
+    data_source = config.get('data_source', {})
+
+    # Data source type
+    source_type = st.selectbox(
+        "Data Source Type:",
+        ["clickhouse", "csv", "synthetic"],
+        index=["clickhouse", "csv", "synthetic"].index(data_source.get('type', 'clickhouse'))
+    )
+
+    if source_type == "clickhouse":
+        st.markdown("**ClickHouse Settings:**")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            database = st.text_input(
+                "Database:",
+                value=data_source.get('clickhouse', {}).get('database', 'public')
+            )
+
+            table = st.text_input(
+                "Table:",
+                value=data_source.get('clickhouse', {}).get('table', 'stixor_fraud_features_distributed')
+            )
+
+        with col2:
+            limit = st.number_input(
+                "Row Limit:",
+                min_value=1000,
+                max_value=10000000,
+                value=data_source.get('clickhouse', {}).get('limit', 100000),
+                step=10000
+            )
+
+        st.markdown("**Data Filters:**")
+
+        # Date range filter
+        date_filter = data_source.get('clickhouse', {}).get('filters', {}).get('date_range', {})
+        date_enabled = st.checkbox("Enable Date Range Filter", value=date_filter.get('enabled', True))
+
+        if date_enabled:
+            col1, col2 = st.columns(2)
+            with col1:
+                start_date = st.text_input(
+                    "Start Date (YYYY-MM-DD):",
+                    value=date_filter.get('start_date', '2025-03-01')
+                )
+            with col2:
+                end_date = st.text_input(
+                    "End Date (YYYY-MM-DD):",
+                    value=date_filter.get('end_date', '2025-06-30')
+                )
+
+        # Fraud filter
+        fraud_filter = data_source.get('clickhouse', {}).get('filters', {}).get('fraud_filter', {})
+        fraud_enabled = st.checkbox("Enable Fraud Filter", value=fraud_filter.get('enabled', False))
+
+        if fraud_enabled:
+            fraud_only = st.checkbox("Load Fraud Cases Only", value=fraud_filter.get('fraud_only', False))
+
+        # Custom WHERE clause
+        custom_filter = data_source.get('clickhouse', {}).get('filters', {}).get('custom_where', {})
+        custom_enabled = st.checkbox("Enable Custom WHERE Clause", value=custom_filter.get('enabled', False))
+
+        if custom_enabled:
+            custom_clause = st.text_area(
+                "Custom WHERE Clause:",
+                value=custom_filter.get('clause', ''),
+                help="Add custom SQL WHERE conditions"
+            )
+
+        if st.button("Save Data Source Config", type="primary"):
+            # Update config
+            config['data_source']['type'] = source_type
+            config['data_source']['clickhouse']['database'] = database
+            config['data_source']['clickhouse']['table'] = table
+            config['data_source']['clickhouse']['limit'] = limit
+
+            if date_enabled:
+                config['data_source']['clickhouse']['filters']['date_range'] = {
+                    'enabled': True,
+                    'start_date': start_date,
+                    'end_date': end_date
+                }
+
+            if fraud_enabled:
+                config['data_source']['clickhouse']['filters']['fraud_filter'] = {
+                    'enabled': True,
+                    'fraud_only': fraud_only
+                }
+
+            if custom_enabled:
+                config['data_source']['clickhouse']['filters']['custom_where'] = {
+                    'enabled': True,
+                    'clause': custom_clause
+                }
+
+            config_manager.save_config(config)
+            st.session_state.training_config = config
+            st.success("Data source configuration saved!")
+
+
+def show_model_settings_config(config):
+    """Configure model settings"""
+    st.markdown("#### Model Settings Configuration")
+
+    model_config = config.get('model', {})
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Model Type:**")
+        model_type = st.selectbox(
+            "Algorithm:",
+            ["random_forest", "gradient_boosting", "logistic_regression", "xgboost", "lightgbm", "neural_network"],
+            index=["random_forest", "gradient_boosting", "logistic_regression", "xgboost", "lightgbm", "neural_network"].index(
+                model_config.get('type', 'random_forest')
+            )
+        )
+
+    with col2:
+        st.markdown("**Training Parameters:**")
+        test_size = st.slider(
+            "Test Size:",
+            0.1, 0.5,
+            model_config.get('training', {}).get('test_size', 0.2),
+            0.05
+        )
+
+        random_state = st.number_input(
+            "Random State:",
+            value=model_config.get('training', {}).get('random_state', 42)
+        )
+
+    st.markdown("---")
+    st.markdown(f"**Hyperparameters for {model_type}:**")
+
+    hyperparams = model_config.get('hyperparameters', {}).get(model_type, {})
+
+    if model_type == "random_forest":
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            n_estimators = st.number_input("n_estimators:", value=hyperparams.get('n_estimators', 100))
+        with col2:
+            max_depth = st.number_input("max_depth:", value=hyperparams.get('max_depth', 10))
+        with col3:
+            min_samples_split = st.number_input("min_samples_split:", value=hyperparams.get('min_samples_split', 2))
+
+    if st.button("Save Model Config", type="primary"):
+        config['model']['type'] = model_type
+        config['model']['training']['test_size'] = test_size
+        config['model']['training']['random_state'] = random_state
+
+        if model_type == "random_forest":
+            config['model']['hyperparameters']['random_forest']['n_estimators'] = n_estimators
+            config['model']['hyperparameters']['random_forest']['max_depth'] = max_depth
+            config['model']['hyperparameters']['random_forest']['min_samples_split'] = min_samples_split
+
+        config_manager.save_config(config)
+        st.session_state.training_config = config
+        st.success("Model configuration saved!")
+
+
+def show_scripts_config(config):
+    """Configure training scripts"""
+    st.markdown("#### Training Scripts Configuration")
+
+    scripts_config = config.get('scripts', {})
+    scripts_dir = scripts_config.get('directory', 'training_scripts')
+
+    st.info(f"Training scripts directory: **{scripts_dir}**")
+
+    # List available scripts
+    available_scripts = config_manager.list_training_scripts()
+
+    if available_scripts:
+        st.markdown("**Available Training Scripts:**")
+
+        for script in available_scripts:
+            with st.expander(f"📄 {script}"):
+                script_path = os.path.join(scripts_dir, script)
+
+                # Show script info
+                st.text(f"Path: {script_path}")
+
+                # Check if custom config exists
+                custom_scripts = scripts_config.get('custom_scripts', {})
+                if script in custom_scripts:
+                    st.text(f"Description: {custom_scripts[script].get('description', 'N/A')}")
+                    st.text(f"Arguments: {', '.join(custom_scripts[script].get('args', []))}")
+                else:
+                    st.warning("No custom configuration. Using default arguments.")
+
+    else:
+        st.warning(f"No training scripts found in {scripts_dir}")
+        st.info("Add your training scripts (.py files) to the training_scripts directory")
+
+    st.markdown("---")
+    st.markdown("**Default Script Arguments:**")
+
+    default_args = scripts_config.get('default_args', {})
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        model_type = st.text_input("Model Type:", value=default_args.get('model_type', 'random_forest'))
+        test_size = st.number_input("Test Size:", value=default_args.get('test_size', 0.2))
+
+    with col2:
+        epochs = st.number_input("Epochs:", value=default_args.get('epochs', 100))
+        save_model = st.checkbox("Save Model:", value=default_args.get('save_model', True))
+
+    if st.button("Save Scripts Config", type="primary"):
+        config['scripts']['default_args']['model_type'] = model_type
+        config['scripts']['default_args']['test_size'] = test_size
+        config['scripts']['default_args']['epochs'] = epochs
+        config['scripts']['default_args']['save_model'] = save_model
+
+        config_manager.save_config(config)
+        st.session_state.training_config = config
+        st.success("Scripts configuration saved!")
+
+
+def show_artifacts_config(config):
+    """Configure artifacts and saving"""
+    st.markdown("#### Artifacts & Saving Configuration")
+
+    artifacts_config = config.get('artifacts', {})
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Model Saving:**")
+
+        models_dir = st.text_input(
+            "Models Directory:",
+            value=artifacts_config.get('models', {}).get('save_dir', 'artifacts/models')
+        )
+
+        versioning = st.checkbox(
+            "Enable Versioning:",
+            value=artifacts_config.get('models', {}).get('versioning', True)
+        )
+
+        version_format = st.selectbox(
+            "Version Format:",
+            ["v{timestamp}", "v{date}", "v{counter}"],
+            index=0
+        )
+
+        save_format = st.selectbox(
+            "Save Format:",
+            ["joblib", "pickle", "onnx"],
+            index=0
+        )
+
+    with col2:
+        st.markdown("**Logs & Metrics:**")
+
+        logs_dir = st.text_input(
+            "Logs Directory:",
+            value=artifacts_config.get('logs', {}).get('save_dir', 'artifacts/logs')
+        )
+
+        save_logs = st.checkbox(
+            "Save Training Logs:",
+            value=artifacts_config.get('logs', {}).get('save_training_logs', True)
+        )
+
+        save_metrics = st.checkbox(
+            "Save Metrics:",
+            value=artifacts_config.get('logs', {}).get('save_metrics', True)
+        )
+
+    st.markdown("---")
+    st.markdown("**Metadata:**")
+
+    metadata_config = artifacts_config.get('metadata', {})
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        save_config = st.checkbox("Save Config", value=metadata_config.get('save_config', True))
+    with col2:
+        save_features = st.checkbox("Save Features", value=metadata_config.get('save_features', True))
+    with col3:
+        save_schema = st.checkbox("Save Schema", value=metadata_config.get('save_schema', True))
+    with col4:
+        save_performance = st.checkbox("Save Performance", value=metadata_config.get('save_performance', True))
+
+    if st.button("Save Artifacts Config", type="primary"):
+        config['artifacts']['models']['save_dir'] = models_dir
+        config['artifacts']['models']['versioning'] = versioning
+        config['artifacts']['models']['version_format'] = version_format
+        config['artifacts']['models']['save_format'] = save_format
+
+        config['artifacts']['logs']['save_dir'] = logs_dir
+        config['artifacts']['logs']['save_training_logs'] = save_logs
+        config['artifacts']['logs']['save_metrics'] = save_metrics
+
+        config['artifacts']['metadata']['save_config'] = save_config
+        config['artifacts']['metadata']['save_features'] = save_features
+        config['artifacts']['metadata']['save_schema'] = save_schema
+        config['artifacts']['metadata']['save_performance'] = save_performance
+
+        config_manager.save_config(config)
+        st.session_state.training_config = config
+        st.success("Artifacts configuration saved!")
+
+
+def show_yaml_config(config):
+    """View and edit raw YAML configuration"""
+    st.markdown("#### View/Edit Configuration (YAML)")
+
+    # Convert config to YAML string
+    yaml_str = yaml.dump(config, default_flow_style=False, sort_keys=False)
+
+    # Editable text area
+    edited_yaml = st.text_area(
+        "Configuration YAML:",
+        value=yaml_str,
+        height=600,
+        help="Edit the configuration directly in YAML format"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("Save Changes", type="primary"):
+            try:
+                new_config = yaml.safe_load(edited_yaml)
+                config_manager.save_config(new_config)
+                st.session_state.training_config = new_config
+                st.success("Configuration saved successfully!")
+            except Exception as e:
+                st.error(f"Error parsing YAML: {str(e)}")
+
+    with col2:
+        if st.button("Reload from File"):
+            st.session_state.training_config = config_manager.load_config()
+            st.success("Configuration reloaded!")
+            st.rerun()
+
+    with col3:
+        if st.button("Export to JSON"):
+            json_str = config_manager.export_config_to_json()
+            st.download_button(
+                label="Download JSON",
+                data=json_str,
+                file_name=f"training_config_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
 
 
 def show_custom_script_training():
     """Interface for running custom training scripts like train_all.py"""
     st.markdown("### Custom Training Script")
-    st.markdown("Run your custom training script (e.g., train_all.py) with configurable arguments")
+    st.markdown("Run your custom training scripts with configurable arguments from the **training_scripts** directory")
 
-    # Check if training script exists
-    script_path = st.text_input(
-        "Training Script Path:",
-        value="train_all.py",
-        help="Path to your training script (e.g., train_all.py)"
-    )
+    # Get config
+    config = st.session_state.training_config
+    scripts_dir = config.get('scripts', {}).get('directory', 'training_scripts')
 
-    script_exists = os.path.exists(script_path)
+    # List available scripts
+    available_scripts = config_manager.list_training_scripts()
 
-    if script_exists:
-        st.success(f"Script found: {script_path}")
-    else:
-        st.warning(f"Script not found: {script_path}")
-        st.info("Please provide the correct path to your training script or upload it below")
+    if not available_scripts:
+        st.warning(f"No training scripts found in **{scripts_dir}** directory")
+        st.info("Add your Python training scripts (.py files) to the training_scripts directory")
 
+        # Option to upload script
         uploaded_script = st.file_uploader("Upload Training Script:", type=['py'])
         if uploaded_script:
+            script_name = uploaded_script.name
             script_content = uploaded_script.read().decode('utf-8')
+
             st.code(script_content, language='python')
 
-            if st.button("Save Script"):
+            if st.button("Save Script to training_scripts/"):
+                os.makedirs(scripts_dir, exist_ok=True)
+                script_path = os.path.join(scripts_dir, script_name)
+
                 with open(script_path, 'w') as f:
                     f.write(script_content)
+
                 st.success(f"Script saved to {script_path}")
                 st.rerun()
 
+        return
+
+    # Select script
+    selected_script = st.selectbox(
+        "Select Training Script:",
+        available_scripts,
+        help="Choose a training script from the training_scripts directory"
+    )
+
+    script_path = os.path.join(scripts_dir, selected_script)
+    script_exists = os.path.exists(script_path)
+
+    if not script_exists:
+        st.error(f"Script path invalid: {script_path}")
+        return
+
+    st.success(f"Using script: **{selected_script}**")
+
     st.markdown("---")
     st.markdown("#### Training Configuration")
+    st.info("Using configuration from **Configuration** tab. Modify there to change defaults.")
+
+    # Get config values
+    model_config = config.get('model', {})
+    default_args = config.get('scripts', {}).get('default_args', {})
 
     # Data source selection
     data_source = st.radio(
         "Data Source:",
-        ["Use Loaded Data (from Data Loading module)", "Specify Data Path", "Use ClickHouse Query"],
+        ["Use Loaded Data (from Data Loading module)", "Use Config Settings", "Specify Custom Path"],
         help="Choose where to load training data from"
     )
 
     data_path = None
-    if data_source == "Specify Data Path":
+
+    if data_source == "Use Config Settings":
+        data_config = config.get('data_source', {})
+        st.info(f"Using data from: {data_config.get('type', 'clickhouse')} - configured in Configuration tab")
+
+        if data_config.get('type') == 'clickhouse':
+            table = data_config.get('clickhouse', {}).get('table', 'stixor_fraud_features_distributed')
+            st.text(f"Table: {table}")
+
+    elif data_source == "Specify Custom Path":
         data_path = st.text_input("Data Path:", placeholder="/path/to/training_data.csv")
+
     elif data_source == "Use Loaded Data (from Data Loading module)":
         if st.session_state.get('loaded_data') is not None:
             st.info(f"Using data from: {st.session_state.get('data_source', 'Unknown')}")
@@ -97,7 +529,11 @@ def show_custom_script_training():
 
             # Option to save loaded data
             if st.button("Save Loaded Data for Training"):
-                temp_path = f"/tmp/training_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                # Use configured artifacts directory
+                artifacts_dir = config.get('artifacts', {}).get('models', {}).get('save_dir', 'artifacts/models')
+                os.makedirs(artifacts_dir, exist_ok=True)
+
+                temp_path = os.path.join(artifacts_dir, f"training_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
                 st.session_state.loaded_data.to_csv(temp_path, index=False)
                 data_path = temp_path
                 st.success(f"Data saved to: {temp_path}")
@@ -106,6 +542,7 @@ def show_custom_script_training():
 
     st.markdown("---")
     st.markdown("#### Script Arguments")
+    st.info("Default values loaded from Configuration. Customize here for this run only.")
 
     # Common training arguments
     col1, col2 = st.columns(2)
@@ -116,16 +553,33 @@ def show_custom_script_training():
             "Model Type:",
             ["random_forest", "gradient_boosting", "logistic_regression",
              "xgboost", "lightgbm", "neural_network"],
+            index=["random_forest", "gradient_boosting", "logistic_regression",
+                   "xgboost", "lightgbm", "neural_network"].index(
+                       model_config.get('type', 'random_forest')
+                   ),
             help="Type of model to train"
         )
 
-        test_size = st.slider("Test Size:", 0.1, 0.5, 0.2, 0.05)
+        test_size = st.slider(
+            "Test Size:",
+            0.1, 0.5,
+            model_config.get('training', {}).get('test_size', 0.2),
+            0.05
+        )
 
-        random_state = st.number_input("Random State:", 0, 9999, 42)
+        random_state = st.number_input(
+            "Random State:",
+            0, 9999,
+            model_config.get('training', {}).get('random_state', 42)
+        )
 
     with col2:
         st.markdown("**Training Options:**")
-        epochs = st.number_input("Epochs/Iterations:", 1, 1000, 100)
+        epochs = st.number_input(
+            "Epochs/Iterations:",
+            1, 1000,
+            default_args.get('epochs', 100)
+        )
 
         early_stopping = st.checkbox("Early Stopping", value=True)
 
