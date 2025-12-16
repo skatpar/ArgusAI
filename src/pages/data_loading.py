@@ -11,7 +11,7 @@ import sys
 sys.path.append('/home/user/ArgusAI')
 
 from src.utils.clickhouse_connector import ClickHouseConnector, test_connection
-from src.utils.data_generator import generate_transaction_data
+from src.utils.data_generator import generate_fraud_data
 
 
 def show():
@@ -425,17 +425,17 @@ def show_synthetic_data_generator():
 
     if st.button("Generate Data", type="primary"):
         with st.spinner("Generating synthetic data..."):
-            df = generate_transaction_data(
+            df = generate_fraud_data(
                 n_samples=num_records,
-                fraud_ratio=fraud_ratio,
-                start_date=start_date,
-                end_date=end_date
+                fraud_rate=fraud_ratio,
+                random_state=42
             )
 
             st.session_state.loaded_data = df
             st.session_state.data_source = f"Synthetic Data ({num_records} records)"
 
             st.success(f"Generated {len(df)} synthetic transactions")
+            st.info(f"Fraud rate: {(df['is_fraud'].sum() / len(df) * 100):.2f}%")
             st.dataframe(df.head(10), use_container_width=True)
 
 
