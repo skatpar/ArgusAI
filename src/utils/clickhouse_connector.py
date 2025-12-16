@@ -242,6 +242,11 @@ class ClickHouseConnector:
         """
         query = "SHOW TABLES"
         result = self.execute_query(query)
+
+        # Handle empty database (no tables)
+        if result.empty or len(result.columns) == 0:
+            return []
+
         return result.iloc[:, 0].tolist()
 
     def get_row_count(self, table: str, filters: Optional[Dict] = None) -> int:
@@ -313,7 +318,12 @@ def test_connection(host: str, port: int, username: str,
             # Get database info
             tables = connector.get_table_list()
             version_result = connector.execute_query("SELECT version()")
-            version = version_result.iloc[0, 0] if not version_result.empty else "Unknown"
+
+            # Safely extract version
+            if not version_result.empty and len(version_result.columns) > 0:
+                version = version_result.iloc[0, 0]
+            else:
+                version = "Unknown"
 
             connector.close()
 
