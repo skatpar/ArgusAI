@@ -159,8 +159,8 @@ with st.sidebar:
 
     selected = option_menu(
         menu_title=None,
-        options=["Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Real-time Inference", "Model Deployment"],
-        icons=["graph-up-arrow", "activity", "shield-check", "folder-open", "lightning-fill", "cpu"],
+        options=["Data Loading", "Model Training", "Feature Monitoring", "Model Monitoring", "Rule Editor", "Case Management", "Real-time Inference", "Model Deployment"],
+        icons=["database", "gear-fill", "graph-up-arrow", "activity", "shield-check", "folder-open", "lightning-fill", "cpu"],
         menu_icon=None,
         default_index=0,
         styles={
@@ -189,18 +189,28 @@ with st.sidebar:
         <div style='background-color: #1a1a1a; padding: 1.2rem; border-radius: 8px; border: 1px solid #444;'>
             <p style='color: #744ada; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.8rem 0;'>PLATFORM CAPABILITIES</p>
             <ul style='color: #cccccc; font-size: 0.85rem; line-height: 1.8; margin: 0; padding-left: 1.2rem;'>
+                <li>ClickHouse data loading with query builder</li>
+                <li>Custom model training with your scripts</li>
                 <li>Feature drift & data quality monitoring</li>
                 <li>Model performance & fraud KPI tracking</li>
                 <li>Rule-based fraud detection</li>
                 <li>Case investigation & management</li>
-                <li>Real-time inference with KNIME API</li>
+                <li>Real-time inference with production API</li>
                 <li>Model deployment & management</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
 
 # Main content
-if selected == "Feature Monitoring":
+if selected == "Data Loading":
+    from src.pages import data_loading
+    data_loading.show()
+
+elif selected == "Model Training":
+    from src.pages import model_training
+    model_training.show()
+
+elif selected == "Feature Monitoring":
     from src.pages import feature_monitoring
     feature_monitoring.show()
 
