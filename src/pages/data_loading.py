@@ -25,7 +25,7 @@ def show():
             'port': 8123,
             'username': 'default',
             'password': '',
-            'database': 'default',
+            'database': 'public',
             'connected': False
         }
 
@@ -171,14 +171,16 @@ def show_clickhouse_loader():
 
     method = st.radio(
         "Loading Method:",
-        ["Query Builder", "Custom SQL Query", "Quick Filters"],
-        horizontal=True
+        ["Custom SQL Query", "Query Builder", "Quick Filters"],
+        index=0,
+        horizontal=True,
+        help="Custom SQL Query is recommended for direct access to stixor_fraud_features_distributed"
     )
 
-    if method == "Query Builder":
-        show_query_builder()
-    elif method == "Custom SQL Query":
+    if method == "Custom SQL Query":
         show_custom_query()
+    elif method == "Query Builder":
+        show_query_builder()
     else:
         show_quick_filters()
 
@@ -194,10 +196,16 @@ def show_query_builder():
         st.warning("No tables found in database")
         return
 
+    # Set default table to stixor_fraud_features_distributed if it exists
+    default_table = "stixor_fraud_features_distributed"
+    default_index = 0
+    if default_table in tables:
+        default_index = tables.index(default_table)
+
     col1, col2 = st.columns(2)
 
     with col1:
-        selected_table = st.selectbox("Select Table:", tables)
+        selected_table = st.selectbox("Select Table:", tables, index=default_index)
 
         # Get table schema
         if st.button("Load Schema"):
@@ -286,15 +294,37 @@ def show_query_builder():
 def show_custom_query():
     """Custom SQL query interface"""
     st.markdown("#### Custom SQL Query")
+    st.markdown("Write SQL queries to load data from **stixor_fraud_features_distributed** or other tables")
 
-    query = st.text_area(
-        "Enter SQL Query:",
-        height=200,
-        placeholder="SELECT * FROM transactions WHERE is_fraud = 1 LIMIT 10000",
-        help="Enter any valid ClickHouse SQL query"
+    # Sample queries dropdown
+    st.markdown("**Sample Queries:**")
+    sample_queries = {
+        "Load all data (limit 10K)": "SELECT * FROM stixor_fraud_features_distributed LIMIT 10000",
+        "Load recent data": "SELECT * FROM stixor_fraud_features_distributed WHERE timestamp >= today() - 30 LIMIT 10000",
+        "Load fraud cases only": "SELECT * FROM stixor_fraud_features_distributed WHERE is_fraud = 1 LIMIT 10000",
+        "Load by date range": "SELECT * FROM stixor_fraud_features_distributed WHERE timestamp BETWEEN '2025-01-01' AND '2025-12-31' LIMIT 50000",
+        "Custom query": ""
+    }
+
+    selected_sample = st.selectbox(
+        "Select a sample query or write your own:",
+        list(sample_queries.keys()),
+        index=0
     )
 
-    col1, col2 = st.columns([1, 3])
+    # Pre-fill query based on selection
+    default_query = sample_queries[selected_sample]
+
+    query = st.text_area(
+        "SQL Query:",
+        value=default_query,
+        height=200,
+        help="Enter any valid ClickHouse SQL query. Use stixor_fraud_features_distributed table."
+    )
+
+    st.markdown("---")
+
+    col1, col2, col3 = st.columns([1, 1, 3])
 
     with col1:
         if st.button("Execute Query", type="primary"):
@@ -325,13 +355,24 @@ def show_custom_query():
                     except Exception as e:
                         st.error(f"Query error: {str(e)}")
 
+    with col2:
+        if st.button("Clear Query"):
+            st.rerun()
+
 
 def show_quick_filters():
     """Quick filter interface for common queries"""
     st.markdown("#### Quick Filters")
 
     tables = st.session_state.ch_config.get('tables', [])
-    selected_table = st.selectbox("Select Table:", tables)
+
+    # Set default table to stixor_fraud_features_distributed if it exists
+    default_table = "stixor_fraud_features_distributed"
+    default_index = 0
+    if default_table in tables:
+        default_index = tables.index(default_table)
+
+    selected_table = st.selectbox("Select Table:", tables, index=default_index)
 
     col1, col2 = st.columns(2)
 
