@@ -283,8 +283,10 @@ def show_query_builder():
 
                 st.session_state.loaded_data = df
                 st.session_state.data_source = f"ClickHouse: {selected_table}"
+                st.session_state.global_data_source = "clickhouse"
+                st.session_state.data_features = df.columns.tolist()
 
-                st.success(f"Loaded {len(df)} rows from {selected_table}")
+                st.success(f"Loaded {len(df)} rows, {len(df.columns)} features from {selected_table}")
                 st.dataframe(df.head(10), use_container_width=True)
 
             except Exception as e:
@@ -346,10 +348,13 @@ def show_custom_query():
 
                         connector.close()
 
+                        # Set global data source
                         st.session_state.loaded_data = df
                         st.session_state.data_source = "ClickHouse: Custom Query"
+                        st.session_state.global_data_source = "clickhouse"
+                        st.session_state.data_features = df.columns.tolist()
 
-                        st.success(f"Query executed successfully! Loaded {len(df)} rows")
+                        st.success(f"Query executed successfully! Loaded {len(df)} rows, {len(df.columns)} features")
                         st.dataframe(df.head(10), use_container_width=True)
 
                     except Exception as e:
@@ -414,8 +419,10 @@ def show_quick_filters():
 
                 st.session_state.loaded_data = df
                 st.session_state.data_source = f"ClickHouse: {selected_table} ({start_date} to {end_date})"
+                st.session_state.global_data_source = "clickhouse"
+                st.session_state.data_features = df.columns.tolist()
 
-                st.success(f"Loaded {len(df)} rows")
+                st.success(f"Loaded {len(df)} rows, {len(df.columns)} features")
                 st.dataframe(df.head(10), use_container_width=True)
 
             except Exception as e:
@@ -436,13 +443,15 @@ def show_csv_loader():
         try:
             df = pd.read_csv(uploaded_file)
 
-            st.success(f"Loaded {len(df)} rows from CSV")
+            st.success(f"Loaded {len(df)} rows, {len(df.columns)} features from CSV")
             st.dataframe(df.head(10), use_container_width=True)
 
             if st.button("Use This Data", type="primary"):
                 st.session_state.loaded_data = df
                 st.session_state.data_source = f"CSV: {uploaded_file.name}"
-                st.success("Data loaded successfully!")
+                st.session_state.global_data_source = "csv"
+                st.session_state.data_features = df.columns.tolist()
+                st.success("Data loaded successfully! This CSV data will be used across all modules.")
                 st.rerun()
 
         except Exception as e:
@@ -474,8 +483,10 @@ def show_synthetic_data_generator():
 
             st.session_state.loaded_data = df
             st.session_state.data_source = f"Synthetic Data ({num_records} records)"
+            st.session_state.global_data_source = "csv"  # Treat synthetic as CSV
+            st.session_state.data_features = df.columns.tolist()
 
-            st.success(f"Generated {len(df)} synthetic transactions")
+            st.success(f"Generated {len(df)} synthetic transactions, {len(df.columns)} features")
             st.info(f"Fraud rate: {(df['is_fraud'].sum() / len(df) * 100):.2f}%")
             st.dataframe(df.head(10), use_container_width=True)
 

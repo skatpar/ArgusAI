@@ -62,21 +62,36 @@ def call_api_inference(endpoint_url: str, transaction_data: Dict[str, Any],
         end_time = datetime.now()
         latency_ms = (end_time - start_time).total_seconds() * 1000
 
-        # Parse response
+        # Parse response (try JSON first, fallback to text)
         try:
-            response_data = response.json() if response.status_code == 200 else response.text
+            response_data = response.json()
         except:
             response_data = response.text
 
-        return {
-            'success': response.status_code == 200,
-            'status_code': response.status_code,
-            'data': response_data if response.status_code == 200 else None,
-            'error': None if response.status_code == 200 else response.text,
-            'latency_ms': latency_ms,
-            'timestamp': start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'endpoint': endpoint_url
-        }
+        # Handle both success and error responses
+        if response.status_code == 200:
+            return {
+                'success': True,
+                'status_code': response.status_code,
+                'data': response_data,
+                'error': None,
+                'latency_ms': latency_ms,
+                'timestamp': start_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'endpoint': endpoint_url
+            }
+        else:
+            # Error response - check if JSON format
+            error_message = response_data if isinstance(response_data, str) else str(response_data)
+            return {
+                'success': False,
+                'status_code': response.status_code,
+                'data': None,
+                'error': error_message,
+                'error_data': response_data if isinstance(response_data, dict) else None,
+                'latency_ms': latency_ms,
+                'timestamp': start_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'endpoint': endpoint_url
+            }
 
     except requests.exceptions.Timeout:
         return {

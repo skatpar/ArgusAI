@@ -95,25 +95,19 @@ model:
 scripts:
   directory: "training_scripts"
 
-  # Default script arguments
-  default_args:
-    data_path: ""
-    model_type: "random_forest"
-    test_size: 0.2
-    random_state: 42
-    epochs: 100
-    early_stopping: true
-    save_model: true
-
   # Custom arguments per script
   custom_scripts:
     train_all.py:
       description: "PySpark multi-model training pipeline"
-      args:
+      required_args:
         - "--data_path"
         - "--model_type"
         - "--test_size"
         - "--random_state"
+      optional_args:
+        - "--epochs"
+        - "--save_model"
+        - "--output_dir"
 
 # Artifacts and Saving Configuration
 artifacts:

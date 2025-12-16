@@ -437,9 +437,9 @@ def show_transaction_id_input(inference_mode, api_configured):
                         })
 
                 else:
-                    st.error(f"API Error: {result['error']}")
+                    st.error(f"API Error (Status {result.get('status_code', 'Unknown')}): {result['error']}")
 
-                    col1, col2 = st.columns(2)
+                    col1, col2, col3 = st.columns(3)
 
                     with col1:
                         st.metric("Status", "FAILED")
@@ -447,6 +447,23 @@ def show_transaction_id_input(inference_mode, api_configured):
                     with col2:
                         if result.get('status_code'):
                             st.metric("Status Code", result['status_code'])
+
+                    with col3:
+                        if result.get('latency_ms'):
+                            st.metric("Latency", f"{result['latency_ms']:.2f}ms")
+
+                    # Show detailed error data if available
+                    if result.get('error_data'):
+                        st.markdown("**Error Details:**")
+                        st.json(result['error_data'])
+
+                    # Show request details for debugging
+                    with st.expander("Request Details (for debugging)"):
+                        st.json({
+                            "endpoint": result.get('endpoint'),
+                            "request_body": {"transaction_id": transaction_id},
+                            "timestamp": result.get('timestamp')
+                        })
 
                     # Add failed request to history
                     st.session_state.inference_history.append({

@@ -585,6 +585,65 @@ def show_custom_script_training():
 
         save_model = st.checkbox("Save Model", value=True)
 
+    # Feature Selection
+    st.markdown("---")
+    st.markdown("#### Feature Selection")
+
+    if st.session_state.get('data_features') and len(st.session_state.data_features) > 0:
+        available_features = st.session_state.data_features
+
+        st.info(f"Found {len(available_features)} features in loaded data")
+
+        # Auto-detect target column
+        possible_targets = ['is_fraud', 'fraud', 'label', 'target', 'y']
+        detected_target = None
+        for target in possible_targets:
+            if target in available_features:
+                detected_target = target
+                break
+
+        col1, col2 = st.columns([3, 1])
+
+        with col1:
+            # Exclude columns that shouldn't be features
+            exclude_cols = ['transaction_id', 'id', 'timestamp', 'date']
+            if detected_target:
+                exclude_cols.append(detected_target)
+
+            feature_options = [f for f in available_features if f not in exclude_cols]
+
+            selected_features = st.multiselect(
+                "Select Features for Training:",
+                options=feature_options,
+                default=feature_options[:min(10, len(feature_options))],  # Select first 10 by default
+                help="Choose which features to use for model training"
+            )
+
+        with col2:
+            st.markdown("**Quick Actions:**")
+            if st.button("Select All"):
+                st.session_state.temp_selected_features = feature_options
+                st.rerun()
+
+            if st.button("Clear All"):
+                st.session_state.temp_selected_features = []
+                st.rerun()
+
+        if detected_target:
+            st.success(f"Target column detected: **{detected_target}**")
+        else:
+            st.warning("Target column not automatically detected. Make sure your data has 'is_fraud' or similar column.")
+
+        if len(selected_features) == 0:
+            st.error("Please select at least one feature")
+
+        # Store selected features
+        st.session_state.selected_training_features = selected_features
+
+    else:
+        st.warning("No feature information available. Load data first from Data Loading module.")
+        selected_features = []
+
     # Custom arguments
     st.markdown("---")
     st.markdown("#### Additional Arguments")
@@ -831,7 +890,128 @@ def show_builtin_training():
                 report_df = pd.DataFrame(report).transpose()
                 st.dataframe(report_df, use_container_width=True)
 
+                # Feature Importance
+                st.markdown("---")
+                st.markdown("#### Feature Importance")
+
+                if hasattr(model, 'feature_importances_'):
+                    import plotly.express as px
+
+                    importance_df = pd.DataFrame({
+                        'Feature': selected_features,
+                        'Importance': model.feature_importances_
+                    }).sort_values('Importance', ascending=False)
+
+                    fig = px.bar(importance_df.head(20), x='Importance', y='Feature',
+                                orientation='h', title="Top 20 Features by Importance")
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Save feature importance
+                    feature_importance_data = importance_df
+                else:
+                    feature_importance_data = None
+
+                # SHAP Analysis
+                st.markdown("---")
+                st.markdown("#### SHAP Analysis")
+                st.info("Computing SHAP values for model explainability...")
+
+                shap_values = None
+                shap_sample_data = None
+
+                try:
+                    import shap
+
+                    # Sample data for SHAP (use max 100 samples for performance)
+                    shap_sample = X_test.sample(n=min(100, len(X_test)), random_state=42)
+
+                    # Create explainer based on model type
+                    if algorithm in ["Random Forest", "Gradient Boosting"]:
+                        explainer = shap.TreeExplainer(model)
+                        shap_vals = explainer.shap_values(shap_sample)
+
+                        # For binary classification, take the positive class
+                        if isinstance(shap_vals, list):
+                            shap_vals = shap_vals[1]
+
+                    else:  # Logistic Regression
+                        explainer = shap.LinearExplainer(model, X_train)
+                        shap_vals = explainer.shap_values(shap_sample)
+
+                    # Summary plot
+                    st.markdown("**SHAP Summary Plot:**")
+                    fig_summary = shap.summary_plot(shap_vals, shap_sample, plot_type="bar",
+                                                     show=False, max_display=15)
+                    st.pyplot(fig_summary.figure, clear_figure=True)
+
+                    # Detailed SHAP plot
+                    st.markdown("**SHAP Detailed Plot:**")
+                    fig_detailed = shap.summary_plot(shap_vals, shap_sample, show=False, max_display=15)
+                    st.pyplot(fig_detailed.figure, clear_figure=True)
+
+                    st.success("SHAP analysis completed!")
+
+                    shap_values = shap_vals
+                    shap_sample_data = shap_sample
+
+                except Exception as e:
+                    st.warning(f"SHAP analysis failed: {str(e)}. Continuing without SHAP...")
+
+                # Save artifacts
+                st.markdown("---")
+                st.markdown("#### Save Artifacts")
+
+                config = st.session_state.training_config
+                artifacts_dir = config.get('artifacts', {}).get('models', {}).get('save_dir', 'artifacts/models')
+                logs_dir = config.get('artifacts', {}).get('logs', {}).get('save_dir', 'artifacts/logs')
+
+                import os
+                import joblib
+
+                os.makedirs(artifacts_dir, exist_ok=True)
+                os.makedirs(logs_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                model_name = f"{algorithm.lower().replace(' ', '_')}_{timestamp}"
+
                 # Save model
+                model_path = os.path.join(artifacts_dir, f"{model_name}.joblib")
+                joblib.dump(model, model_path)
+
+                # Save feature importance
+                if feature_importance_data is not None:
+                    importance_path = os.path.join(artifacts_dir, f"{model_name}_feature_importance.csv")
+                    feature_importance_data.to_csv(importance_path, index=False)
+
+                # Save metrics
+                metrics_path = os.path.join(logs_dir, f"{model_name}_metrics.json")
+                import json
+                with open(metrics_path, 'w') as f:
+                    json.dump({
+                        'algorithm': algorithm,
+                        'features': selected_features,
+                        'roc_auc': roc_auc,
+                        'test_size': test_size,
+                        'training_samples': len(X_train),
+                        'test_samples': len(X_test),
+                        'trained_at': timestamp,
+                        'classification_report': report
+                    }, f, indent=2)
+
+                # Save SHAP values
+                if shap_values is not None:
+                    shap_path = os.path.join(artifacts_dir, f"{model_name}_shap_values.npy")
+                    np.save(shap_path, shap_values)
+
+                st.success(f"✓ Artifacts saved successfully!")
+                st.info(f"Model: {model_path}")
+                st.info(f"Metrics: {metrics_path}")
+                if feature_importance_data is not None:
+                    st.info(f"Feature Importance: {importance_path}")
+                if shap_values is not None:
+                    st.info(f"SHAP Values: {shap_path}")
+
+                # Save model to session
                 st.session_state.current_model = {
                     'model': model,
                     'features': selected_features,
@@ -840,10 +1020,13 @@ def show_builtin_training():
                         'roc_auc': roc_auc,
                         'report': report
                     },
-                    'trained_at': datetime.now()
+                    'trained_at': datetime.now(),
+                    'model_path': model_path,
+                    'feature_importance': feature_importance_data,
+                    'shap_values': shap_values
                 }
 
-                st.info("Model saved to session state. You can use it for inference!")
+                st.info("Model saved to session state and artifacts directory!")
 
             except Exception as e:
                 st.error(f"Training error: {str(e)}")

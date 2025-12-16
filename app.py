@@ -146,6 +146,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Initialize global session state for data source management
+if 'global_data_source' not in st.session_state:
+    st.session_state.global_data_source = None  # 'clickhouse' or 'csv'
+
+if 'loaded_data' not in st.session_state:
+    st.session_state.loaded_data = None
+
+if 'data_source' not in st.session_state:
+    st.session_state.data_source = None
+
+if 'data_features' not in st.session_state:
+    st.session_state.data_features = []
+
 # Sidebar
 with st.sidebar:
     st.markdown("""
