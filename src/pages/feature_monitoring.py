@@ -393,7 +393,8 @@ def show_data_quality():
 
         # Show option to view all columns
         with st.expander("📊 View All Columns"):
-            all_display_df = missing_df[['Feature', 'Missing Count', 'Missing % Display', 'Status']].sort_values('Missing %', ascending=False)
+            # Sort first, then select display columns
+            all_display_df = missing_df.sort_values('Missing %', ascending=False)[['Feature', 'Missing Count', 'Missing % Display', 'Status']]
             st.dataframe(all_display_df, use_container_width=True, hide_index=True)
 
         # Outlier detection
