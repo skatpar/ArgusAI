@@ -385,53 +385,79 @@ def show_transaction_id_input(inference_mode, api_configured):
                     st.markdown("**API Response:**")
                     st.json(result['data'])
 
-                    # Extract fraud score
+                    # Extract fraud score from response
                     response_data = result['data']
 
+                    # Handle nested "data" field in response
+                    if isinstance(response_data, dict) and 'data' in response_data:
+                        response_data = response_data['data']
+
                     if isinstance(response_data, dict):
+                        # Extract fraud probability
                         fraud_score = (
+                            response_data.get('fraud_probability') or
                             response_data.get('fraud_score') or
                             response_data.get('score') or
-                            response_data.get('probability') or
-                            response_data.get('fraud_probability')
+                            response_data.get('probability')
                         )
 
+                        # Extract prediction
                         prediction = (
                             response_data.get('prediction') or
                             response_data.get('label') or
                             response_data.get('class')
                         )
 
+                        # Extract risk level
+                        risk_level = (
+                            response_data.get('risk_level') or
+                            response_data.get('risk')
+                        )
+
+                        # Extract actual fraud flag if available
+                        actual_fraud = response_data.get('actual_fraud_flag')
+
                         # Display interpreted results
                         if fraud_score is not None or prediction is not None:
                             st.markdown("---")
                             st.markdown("**Fraud Detection Results:**")
 
-                            col1, col2, col3 = st.columns(3)
+                            col1, col2, col3, col4 = st.columns(4)
 
-                            if fraud_score is not None:
-                                with col1:
+                            with col1:
+                                if fraud_score is not None:
                                     score_val = float(fraud_score)
-                                    score_display = f"{score_val:.2%}" if score_val <= 1 else f"{score_val:.2f}"
-                                    st.metric("Fraud Score", score_display)
+                                    score_display = f"{score_val:.2%}" if score_val <= 1 else f"{score_val:.4f}"
+                                    st.metric("Fraud Probability", score_display)
 
-                            if prediction is not None:
-                                with col2:
-                                    st.metric("Prediction", str(prediction).upper())
+                            with col2:
+                                if prediction is not None:
+                                    pred_label = "FRAUD" if int(prediction) == 1 else "LEGITIMATE"
+                                    st.metric("Prediction", pred_label)
 
-                            if fraud_score is not None:
-                                with col3:
+                            with col3:
+                                if risk_level:
+                                    st.metric("Risk Level", str(risk_level).upper())
+                                elif fraud_score is not None:
                                     score_val = float(fraud_score)
-                                    risk = "HIGH RISK" if (score_val > 0.5 if score_val <= 1 else score_val > 50) else "LOW RISK"
+                                    risk = "HIGH RISK" if score_val > 0.5 else "LOW RISK"
                                     st.metric("Risk Level", risk)
+
+                            with col4:
+                                st.metric("Latency", f"{result['latency_ms']:.2f}ms")
+
+                            # Show actual fraud flag if available (for validation)
+                            if actual_fraud is not None:
+                                st.info(f"Actual Fraud Flag: **{actual_fraud}** (for validation)")
 
                         # Add to history
                         st.session_state.inference_history.append({
                             'Timestamp': result['timestamp'],
                             'Mode': 'Production API',
                             'Transaction ID': transaction_id,
-                            'Fraud Score': f"{fraud_score:.2%}" if fraud_score and fraud_score <= 1 else str(fraud_score),
+                            'Fraud Probability': f"{fraud_score:.4f}" if fraud_score else 'N/A',
                             'Prediction': str(prediction) if prediction else 'N/A',
+                            'Risk Level': str(risk_level) if risk_level else 'N/A',
                             'Latency': f"{result['latency_ms']:.1f}ms",
                             'Status': 'Success'
                         })
