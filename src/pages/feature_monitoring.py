@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from scipy import stats
 import sys
 sys.path.append('/home/user/ArgusAI')
-from src.utils.data_generator import generate_fraud_data
+# from src.utils.data_generator import generate_fraud_data  # Removed - using loaded data only
 
 
 def show():
@@ -28,11 +28,9 @@ def show():
         if st.session_state.get('monitoring_data') is None:
             st.session_state.monitoring_data = st.session_state.loaded_data
     else:
-        st.warning("No data loaded. Please load data from the Data Loading module first.")
-        if st.button("Load Sample Data for Demo"):
-            st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            st.success("Sample data loaded for demonstration")
-            st.rerun()
+        st.warning("⚠️ No data loaded. Please go to the **Data Loading** module first to load data from ClickHouse.")
+        st.info("Feature Monitoring requires actual data to analyze feature drift, quality, and statistics.")
+        return
 
     # Initialize session state
     if 'monitoring_data' not in st.session_state:
@@ -75,36 +73,48 @@ def show_feature_drift():
     st.markdown("### Feature Drift Detection")
     st.markdown("Detect and monitor feature distribution drift over time")
 
+    # Check if data is loaded
+    if st.session_state.get('monitoring_data') is None:
+        st.warning("No data available. Please load data from Data Loading module first.")
+        return
+
+    # Use loaded data
+    current_data = st.session_state.monitoring_data
+
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("#### Baseline Data")
-        if st.button("Load Baseline Data"):
-            with st.spinner("Loading baseline data..."):
-                st.session_state.baseline_data = generate_fraud_data(n_samples=5000, fraud_rate=0.05)
-                st.success("Baseline data loaded (5,000 records)")
+        if st.session_state.baseline_data is None:
+            if st.button("Use Current Data as Baseline"):
+                st.session_state.baseline_data = current_data.copy()
+                st.success(f"Baseline set ({len(current_data):,} records)")
+                st.rerun()
+        else:
+            st.success(f"Baseline data loaded ({len(st.session_state.baseline_data):,} records)")
+            if st.button("Reset Baseline"):
+                st.session_state.baseline_data = None
+                st.rerun()
 
     with col2:
         st.markdown("#### Current Data")
-        if st.button("Load Current Data"):
-            with st.spinner("Loading current data..."):
-                # Simulate drift by modifying distributions
-                st.session_state.monitoring_data = generate_fraud_data(n_samples=5000, fraud_rate=0.05)
-                # Add drift to some features
-                st.session_state.monitoring_data['transaction_amount'] *= np.random.uniform(1.2, 1.5)
-                st.success("Current data loaded (5,000 records)")
+        st.info(f"Using loaded data ({len(current_data):,} records)")
+        st.text(f"Source: {st.session_state.get('data_source', 'Unknown')}")
 
-    if st.session_state.baseline_data is not None and st.session_state.monitoring_data is not None:
+    if st.session_state.baseline_data is not None:
         st.markdown("---")
         st.markdown("#### Drift Analysis")
 
         baseline = st.session_state.baseline_data
-        current = st.session_state.monitoring_data
+        current = current_data
 
         # Select feature to analyze
         numeric_features = baseline.select_dtypes(include=[np.number]).columns.tolist()
-        if 'is_fraud' in numeric_features:
-            numeric_features.remove('is_fraud')
+
+        # Remove target columns
+        for target in ['is_fraud', 'fraud_flag']:
+            if target in numeric_features:
+                numeric_features.remove(target)
 
         selected_feature = st.selectbox("Select feature to analyze:", numeric_features)
 
@@ -290,19 +300,15 @@ def show_data_quality():
     st.markdown("### Data Quality Monitoring")
     st.markdown("Monitor data quality metrics and completeness")
 
-    # Generate or load data
-    if st.button("Load Data for Quality Check"):
-        with st.spinner("Loading data..."):
-            st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            # Introduce some quality issues for demonstration
-            df = st.session_state.monitoring_data
-            # Add missing values
-            df.loc[df.sample(frac=0.05).index, 'transaction_amount'] = np.nan
-            df.loc[df.sample(frac=0.03).index, 'merchant_category'] = np.nan
-            st.success("Data loaded (10,000 records)")
+    # Check if data is loaded
+    if st.session_state.get('monitoring_data') is None:
+        st.warning("No data available. Please load data from Data Loading module first.")
+        return
 
-    if st.session_state.monitoring_data is not None:
-        df = st.session_state.monitoring_data
+    df = st.session_state.monitoring_data
+    st.info(f"Analyzing {len(df):,} records from {st.session_state.get('data_source', 'Unknown')}")
+
+    if df is not None:
 
         # Overall quality score
         st.markdown("---")
@@ -367,8 +373,9 @@ def show_data_quality():
         st.markdown("#### Outlier Detection")
 
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        if 'is_fraud' in numeric_cols:
-            numeric_cols.remove('is_fraud')
+        for target in ['is_fraud', 'fraud_flag']:
+            if target in numeric_cols:
+                numeric_cols.remove(target)
 
         outlier_summary = []
         for col in numeric_cols[:10]:  # First 10 numeric features
@@ -468,103 +475,102 @@ def show_feature_statistics():
     st.markdown("Detailed statistical analysis of features over time")
 
     if st.session_state.monitoring_data is None:
-        if st.button("Load Data"):
-            st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            st.success("Data loaded")
+        st.warning("No data available. Please load data from Data Loading module first.")
+        return
 
-    if st.session_state.monitoring_data is not None:
-        df = st.session_state.monitoring_data
+    df = st.session_state.monitoring_data
 
-        # Feature selector
-        numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-        if 'is_fraud' in numeric_features:
-            numeric_features.remove('is_fraud')
+    # Feature selector
+    numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
+    for target in ['is_fraud', 'fraud_flag']:
+        if target in numeric_features:
+            numeric_features.remove(target)
 
-        selected_feature = st.selectbox("Select feature:", numeric_features)
+    selected_feature = st.selectbox("Select feature:", numeric_features)
 
-        # Statistics summary
-        st.markdown("---")
-        st.markdown(f"#### {selected_feature} - Summary Statistics")
+    # Statistics summary
+    st.markdown("---")
+    st.markdown(f"#### {selected_feature} - Summary Statistics")
 
-        col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-        with col1:
-            st.metric("Mean", f"{df[selected_feature].mean():.2f}")
+    with col1:
+        st.metric("Mean", f"{df[selected_feature].mean():.2f}")
 
-        with col2:
-            st.metric("Median", f"{df[selected_feature].median():.2f}")
+    with col2:
+        st.metric("Median", f"{df[selected_feature].median():.2f}")
 
-        with col3:
-            st.metric("Std Dev", f"{df[selected_feature].std():.2f}")
+    with col3:
+        st.metric("Std Dev", f"{df[selected_feature].std():.2f}")
 
-        with col4:
-            st.metric("Min", f"{df[selected_feature].min():.2f}")
+    with col4:
+        st.metric("Min", f"{df[selected_feature].min():.2f}")
 
-        with col5:
-            st.metric("Max", f"{df[selected_feature].max():.2f}")
+    with col5:
+        st.metric("Max", f"{df[selected_feature].max():.2f}")
 
-        # Distribution plot
-        fig = make_subplots(
-            rows=1, cols=2,
-            subplot_titles=('Distribution', 'Box Plot')
-        )
+    # Distribution plot
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('Distribution', 'Box Plot')
+    )
 
-        fig.add_trace(
-            go.Histogram(x=df[selected_feature], nbinsx=50, name='Distribution'),
-            row=1, col=1
-        )
+    fig.add_trace(
+        go.Histogram(x=df[selected_feature], nbinsx=50, name='Distribution'),
+        row=1, col=1
+    )
 
-        fig.add_trace(
-            go.Box(y=df[selected_feature], name='Box Plot'),
-            row=1, col=2
-        )
+    fig.add_trace(
+        go.Box(y=df[selected_feature], name='Box Plot'),
+        row=1, col=2
+    )
 
-        fig.update_layout(height=400, showlegend=False)
+    fig.update_layout(height=400, showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Percentiles
+    st.markdown("---")
+    st.markdown("#### Percentile Distribution")
+
+    percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+    percentile_values = [df[selected_feature].quantile(p/100) for p in percentiles]
+
+    percentile_df = pd.DataFrame({
+        'Percentile': [f"{p}th" for p in percentiles],
+        'Value': [f"{v:.2f}" for v in percentile_values]
+    })
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.dataframe(percentile_df, use_container_width=True, hide_index=True)
+
+    with col2:
+        fig = px.bar(percentile_df, x='Percentile', y=[float(v) for v in percentile_df['Value']],
+                    title='Percentile Values')
         st.plotly_chart(fig, use_container_width=True)
 
-        # Percentiles
+    # Time series if timestamp available
+    if 'timestamp' in df.columns:
         st.markdown("---")
-        st.markdown("#### Percentile Distribution")
+        st.markdown("#### Time Series Analysis")
 
-        percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
-        percentile_values = [df[selected_feature].quantile(p/100) for p in percentiles]
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['date'] = df['timestamp'].dt.date
 
-        percentile_df = pd.DataFrame({
-            'Percentile': [f"{p}th" for p in percentiles],
-            'Value': [f"{v:.2f}" for v in percentile_values]
-        })
+        daily_stats = df.groupby('date')[selected_feature].agg(['mean', 'std', 'min', 'max']).reset_index()
 
-        col1, col2 = st.columns(2)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=daily_stats['date'], y=daily_stats['mean'],
+                                mode='lines+markers', name='Mean'))
+        fig.add_trace(go.Scatter(x=daily_stats['date'], y=daily_stats['std'],
+                                mode='lines+markers', name='Std Dev'))
 
-        with col1:
-            st.dataframe(percentile_df, use_container_width=True, hide_index=True)
-
-        with col2:
-            fig = px.bar(percentile_df, x='Percentile', y=[float(v) for v in percentile_df['Value']],
-                        title='Percentile Values')
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Time series if timestamp available
-        if 'timestamp' in df.columns:
-            st.markdown("---")
-            st.markdown("#### Time Series Analysis")
-
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df['date'] = df['timestamp'].dt.date
-
-            daily_stats = df.groupby('date')[selected_feature].agg(['mean', 'std', 'min', 'max']).reset_index()
-
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=daily_stats['date'], y=daily_stats['mean'],
-                                    mode='lines+markers', name='Mean'))
-            fig.add_trace(go.Scatter(x=daily_stats['date'], y=daily_stats['std'],
-                                    mode='lines+markers', name='Std Dev'))
-
-            fig.update_layout(title=f'{selected_feature} - Daily Statistics',
-                            xaxis_title='Date',
-                            yaxis_title='Value',
-                            height=400)
-            st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(title=f'{selected_feature} - Daily Statistics',
+                        xaxis_title='Date',
+                        yaxis_title='Value',
+                        height=400)
+        st.plotly_chart(fig, use_container_width=True)
 
 
 def show_alerts_anomalies():
@@ -702,43 +708,53 @@ def show_distribution_analysis():
     st.markdown("Analyze feature distributions across different segments")
 
     if st.session_state.monitoring_data is None:
-        if st.button("Load Data"):
-            st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
-            st.success("Data loaded")
+        st.warning("No data available. Please load data from Data Loading module first.")
+        return
 
     if st.session_state.monitoring_data is not None:
         df = st.session_state.monitoring_data
 
+        # Determine fraud flag column
+        fraud_col = None
+        if 'fraud_flag' in df.columns:
+            fraud_col = 'fraud_flag'
+        elif 'is_fraud' in df.columns:
+            fraud_col = 'is_fraud'
+
         numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-        if 'is_fraud' in numeric_features:
-            numeric_features.remove('is_fraud')
+        for target in ['is_fraud', 'fraud_flag']:
+            if target in numeric_features:
+                numeric_features.remove(target)
 
         selected_feature = st.selectbox("Select feature to analyze:", numeric_features, key='dist_feature')
 
-        # Distribution by fraud status
-        st.markdown("---")
-        st.markdown("#### Distribution by Fraud Status")
+        # Distribution by fraud status (if fraud column exists)
+        if fraud_col:
+            st.markdown("---")
+            st.markdown("#### Distribution by Fraud Status")
 
-        fig = px.histogram(df, x=selected_feature, color='is_fraud',
-                          title=f'{selected_feature} Distribution by Fraud Status',
-                          nbins=50, barmode='overlay',
-                          color_discrete_map={0: '#744ada', 1: '#000000'},
-                          labels={'is_fraud': 'Fraud Status'})
-        st.plotly_chart(fig, use_container_width=True)
+            fig = px.histogram(df, x=selected_feature, color=fraud_col,
+                              title=f'{selected_feature} Distribution by Fraud Status',
+                              nbins=50, barmode='overlay',
+                              color_discrete_map={0: '#744ada', 1: '#000000'},
+                              labels={fraud_col: 'Fraud Status'})
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Statistical comparison
-        fraud_stats = df[df['is_fraud'] == 1][selected_feature].describe()
-        legit_stats = df[df['is_fraud'] == 0][selected_feature].describe()
+            # Statistical comparison
+            fraud_stats = df[df[fraud_col] == 1][selected_feature].describe()
+            legit_stats = df[df[fraud_col] == 0][selected_feature].describe()
 
-        col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-        with col1:
-            st.markdown("**Fraudulent Transactions:**")
-            st.dataframe(fraud_stats, use_container_width=True)
+            with col1:
+                st.markdown("**Fraudulent Transactions:**")
+                st.dataframe(fraud_stats, use_container_width=True)
 
-        with col2:
-            st.markdown("**Legitimate Transactions:**")
-            st.dataframe(legit_stats, use_container_width=True)
+            with col2:
+                st.markdown("**Legitimate Transactions:**")
+                st.dataframe(legit_stats, use_container_width=True)
+        else:
+            st.info("Fraud flag column not found. Showing overall distribution only.")
 
         # Categorical analysis
         if 'merchant_category' in df.columns:
