@@ -159,6 +159,17 @@ if 'data_source' not in st.session_state:
 if 'data_features' not in st.session_state:
     st.session_state.data_features = []
 
+# Computation engine configuration
+if 'computation_engine' not in st.session_state:
+    st.session_state.computation_engine = 'pandas'  # 'pandas' or 'spark'
+
+# Spark-specific session state
+if 'spark_dataframe' not in st.session_state:
+    st.session_state.spark_dataframe = None
+
+if 'use_spark' not in st.session_state:
+    st.session_state.use_spark = False
+
 # Sidebar
 with st.sidebar:
     st.markdown("""
@@ -196,7 +207,34 @@ with st.sidebar:
         }
     )
 
-    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+
+    # Computation Engine Configuration
+    st.markdown("""
+        <div style='background-color: #1a1a1a; padding: 1rem; border-radius: 8px; border: 1px solid #444;'>
+            <p style='color: #744ada; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>⚙️ COMPUTATION ENGINE</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    computation_choice = st.radio(
+        "Select engine:",
+        ["Pandas", "Spark"],
+        index=0 if st.session_state.computation_engine == 'pandas' else 1,
+        help="Pandas: In-memory processing (smaller datasets)\nSpark: Distributed processing (large datasets)",
+        key='engine_radio'
+    )
+
+    if computation_choice.lower() != st.session_state.computation_engine:
+        st.session_state.computation_engine = computation_choice.lower()
+        st.session_state.use_spark = (computation_choice.lower() == 'spark')
+        st.rerun()
+
+    if st.session_state.use_spark:
+        st.info("🚀 Spark mode: Large-scale distributed processing")
+    else:
+        st.info("🐼 Pandas mode: In-memory processing")
+
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
     st.markdown("""
         <div style='background-color: #1a1a1a; padding: 1.2rem; border-radius: 8px; border: 1px solid #444;'>
