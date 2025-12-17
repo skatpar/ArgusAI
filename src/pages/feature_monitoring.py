@@ -342,31 +342,59 @@ def show_data_quality():
         st.markdown("---")
         st.markdown("#### Missing Values Analysis")
 
+        # Add filter for missing percentage
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown("**All Columns Missing Values:**")
+        with col2:
+            missing_threshold = st.number_input(
+                "Filter: Missing % >",
+                min_value=0.0,
+                max_value=100.0,
+                value=30.0,
+                step=5.0,
+                key='missing_threshold'
+            )
+
+        # Calculate missing values for ALL columns
         missing_data = []
         for col in df.columns:
             missing_count = df[col].isnull().sum()
             missing_pct = (missing_count / len(df)) * 100
 
-            if missing_count > 0:
-                missing_data.append({
-                    'Feature': col,
-                    'Missing Count': missing_count,
-                    'Missing %': f"{missing_pct:.2f}%",
-                    'Status': 'GOOD' if missing_pct < 5 else 'MONITOR' if missing_pct < 10 else 'ALERT'
-                })
+            missing_data.append({
+                'Feature': col,
+                'Missing Count': missing_count,
+                'Missing %': missing_pct,
+                'Missing % Display': f"{missing_pct:.2f}%",
+                'Status': 'GOOD' if missing_pct < 5 else 'MONITOR' if missing_pct < 10 else 'ALERT'
+            })
 
-        if missing_data:
-            missing_df = pd.DataFrame(missing_data)
-            st.dataframe(missing_df, use_container_width=True, hide_index=True)
+        missing_df = pd.DataFrame(missing_data)
+
+        # Apply filter
+        filtered_missing_df = missing_df[missing_df['Missing %'] > missing_threshold].copy()
+
+        st.text(f"Showing {len(filtered_missing_df)} columns with missing % > {missing_threshold}% (out of {len(missing_df)} total columns)")
+
+        if len(filtered_missing_df) > 0:
+            # Display filtered dataframe
+            display_df = filtered_missing_df[['Feature', 'Missing Count', 'Missing % Display', 'Status']]
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
 
             # Visualize missing data
-            fig = px.bar(missing_df, x='Feature', y='Missing Count',
-                        title='Missing Values by Feature',
+            fig = px.bar(filtered_missing_df.head(20), x='Feature', y='Missing Count',
+                        title=f'Top 20 Features with Missing % > {missing_threshold}%',
                         color='Missing Count',
                         color_continuous_scale='Reds')
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.success("No missing values detected")
+            st.success(f"No columns found with missing % > {missing_threshold}%")
+
+        # Show option to view all columns
+        with st.expander("📊 View All Columns"):
+            all_display_df = missing_df[['Feature', 'Missing Count', 'Missing % Display', 'Status']].sort_values('Missing %', ascending=False)
+            st.dataframe(all_display_df, use_container_width=True, hide_index=True)
 
         # Outlier detection
         st.markdown("---")
@@ -378,44 +406,66 @@ def show_data_quality():
                 numeric_cols.remove(target)
 
         outlier_summary = []
-        for col in numeric_cols[:10]:  # First 10 numeric features
+        outlier_details = {}  # Store actual outlier values
+
+        for col in numeric_cols[:20]:  # Analyze first 20 numeric features
             q1 = df[col].quantile(0.25)
             q3 = df[col].quantile(0.75)
             iqr = q3 - q1
-            outliers = ((df[col] < (q1 - 1.5 * iqr)) | (df[col] > (q3 + 1.5 * iqr))).sum()
-            outlier_pct = (outliers / len(df)) * 100
+            lower_bound = q1 - 1.5 * iqr
+            upper_bound = q3 + 1.5 * iqr
+
+            # Find outliers
+            outlier_mask = (df[col] < lower_bound) | (df[col] > upper_bound)
+            outlier_count = outlier_mask.sum()
+            outlier_pct = (outlier_count / len(df)) * 100
+
+            # Get actual outlier values
+            if outlier_count > 0:
+                outlier_values = df.loc[outlier_mask, col].values
+                outlier_details[col] = {
+                    'values': outlier_values[:100],  # Store first 100 outliers
+                    'count': outlier_count,
+                    'lower_bound': lower_bound,
+                    'upper_bound': upper_bound,
+                    'min': outlier_values.min(),
+                    'max': outlier_values.max()
+                }
 
             outlier_summary.append({
                 'Feature': col,
-                'Outliers': outliers,
+                'Outliers': outlier_count,
                 'Outlier %': f"{outlier_pct:.2f}%",
+                'Lower Bound': f"{lower_bound:.2f}",
+                'Upper Bound': f"{upper_bound:.2f}",
+                'Min Outlier': f"{outlier_details[col]['min']:.2f}" if col in outlier_details else 'N/A',
+                'Max Outlier': f"{outlier_details[col]['max']:.2f}" if col in outlier_details else 'N/A',
                 'Status': 'GOOD' if outlier_pct < 5 else 'MONITOR' if outlier_pct < 10 else 'ALERT'
             })
 
         outlier_df = pd.DataFrame(outlier_summary)
         st.dataframe(outlier_df, use_container_width=True, hide_index=True)
 
-        # Data freshness
-        st.markdown("---")
-        st.markdown("#### Data Freshness")
+        # Show actual outlier values in expandable sections
+        if len(outlier_details) > 0:
+            st.markdown("---")
+            st.markdown("**📍 View Actual Outlier Values:**")
 
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            latest_timestamp = df['timestamp'].max()
-            oldest_timestamp = df['timestamp'].min()
-            data_age = (datetime.now() - latest_timestamp).total_seconds() / 3600
+            for col, details in list(outlier_details.items())[:5]:  # Show first 5 features with outliers
+                with st.expander(f"🔍 {col} - {details['count']} outliers"):
+                    st.text(f"Expected range: [{details['lower_bound']:.2f}, {details['upper_bound']:.2f}]")
+                    st.text(f"Outlier range: [{details['min']:.2f}, {details['max']:.2f}]")
 
-            col1, col2, col3 = st.columns(3)
+                    # Show sample outlier values
+                    sample_values = details['values'][:50]  # Show first 50
+                    st.markdown(f"**Sample outlier values (showing up to 50 of {details['count']}):**")
 
-            with col1:
-                st.metric("Latest Record", latest_timestamp.strftime('%Y-%m-%d %H:%M'))
-
-            with col2:
-                st.metric("Data Age", f"{data_age:.1f} hours")
-
-            with col3:
-                status = "FRESH" if data_age < 1 else "Moderate" if data_age < 24 else "Stale"
-                st.metric("Freshness Status", status)
+                    # Create a simple dataframe for display
+                    values_df = pd.DataFrame({
+                        'Value': sample_values,
+                        'Out of Bounds': ['Below' if v < details['lower_bound'] else 'Above' for v in sample_values]
+                    })
+                    st.dataframe(values_df, use_container_width=True, hide_index=True)
 
         # Quality trends
         st.markdown("---")
@@ -595,10 +645,20 @@ def show_alerts_anomalies():
 
     # Generate alerts
     if st.button("Scan for Anomalies"):
-        with st.spinner("Scanning for anomalies..."):
-            alerts = generate_feature_alerts()
-            st.session_state.feature_alerts = alerts
-            st.success(f"Scan complete - {len(alerts)} alerts found")
+        if st.session_state.monitoring_data is None:
+            st.warning("No data available. Please load data from Data Loading module first.")
+        else:
+            with st.spinner("Scanning for anomalies..."):
+                alerts = generate_feature_alerts(
+                    st.session_state.monitoring_data,
+                    st.session_state.baseline_data,
+                    psi_threshold,
+                    ks_threshold,
+                    missing_threshold,
+                    outlier_threshold
+                )
+                st.session_state.feature_alerts = alerts
+                st.success(f"Scan complete - {len(alerts)} alerts found")
 
     # Display alerts
     if len(st.session_state.feature_alerts) > 0:
@@ -650,55 +710,99 @@ def show_alerts_anomalies():
         st.info("No alerts detected. Click 'Scan for Anomalies' to check for issues.")
 
 
-def generate_feature_alerts():
-    """Generate sample feature alerts"""
-    alerts = [
-        {
-            'id': 'ALERT_001',
-            'title': 'High Feature Drift Detected',
-            'feature': 'transaction_amount',
-            'severity': 'Critical',
-            'description': 'PSI value of 0.28 exceeds threshold of 0.20. Significant distribution shift detected.',
-            'value': 'PSI: 0.28',
-            'timestamp': (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M')
-        },
-        {
-            'id': 'ALERT_002',
-            'title': 'Increased Missing Values',
-            'feature': 'merchant_category',
-            'severity': 'Warning',
-            'description': 'Missing value percentage increased from 2% to 12% in last 24 hours.',
-            'value': 'Missing: 12%',
-            'timestamp': (datetime.now() - timedelta(hours=5)).strftime('%Y-%m-%d %H:%M')
-        },
-        {
-            'id': 'ALERT_003',
-            'title': 'Outlier Spike',
-            'feature': 'distance_from_home',
-            'severity': 'Warning',
-            'description': 'Outlier percentage increased to 18%, above threshold of 15%.',
-            'value': 'Outliers: 18%',
-            'timestamp': (datetime.now() - timedelta(hours=8)).strftime('%Y-%m-%d %H:%M')
-        },
-        {
-            'id': 'ALERT_004',
-            'title': 'Mean Shift Detected',
-            'feature': 'transactions_24h',
-            'severity': 'Info',
-            'description': 'Mean value shifted by +15% compared to baseline.',
-            'value': 'Shift: +15%',
-            'timestamp': (datetime.now() - timedelta(hours=12)).strftime('%Y-%m-%d %H:%M')
-        },
-        {
-            'id': 'ALERT_005',
-            'title': 'Data Freshness Issue',
-            'feature': 'timestamp',
-            'severity': 'Critical',
-            'description': 'No new data received in last 3 hours. Data pipeline may be down.',
-            'value': 'Last update: 3h ago',
-            'timestamp': (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M')
-        }
-    ]
+def generate_feature_alerts(current_data, baseline_data, psi_threshold, ks_threshold, missing_threshold, outlier_threshold):
+    """Generate alerts based on actual ClickHouse data"""
+    alerts = []
+    alert_id = 1
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    # Get numeric columns
+    numeric_cols = current_data.select_dtypes(include=[np.number]).columns.tolist()
+    for target in ['is_fraud', 'fraud_flag']:
+        if target in numeric_cols:
+            numeric_cols.remove(target)
+
+    # 1. Check for missing values
+    for col in current_data.columns:
+        missing_count = current_data[col].isnull().sum()
+        missing_pct = (missing_count / len(current_data)) * 100
+
+        if missing_pct > missing_threshold:
+            alerts.append({
+                'id': f'ALERT_{alert_id:03d}',
+                'title': 'High Missing Values Detected',
+                'feature': col,
+                'severity': 'Critical' if missing_pct > 50 else 'Warning',
+                'description': f'Missing value percentage is {missing_pct:.2f}%, exceeding threshold of {missing_threshold}%.',
+                'value': f'Missing: {missing_pct:.2f}%',
+                'timestamp': timestamp
+            })
+            alert_id += 1
+
+    # 2. Check for outliers
+    for col in numeric_cols[:20]:  # Check first 20 numeric features
+        q1 = current_data[col].quantile(0.25)
+        q3 = current_data[col].quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+
+        outlier_count = ((current_data[col] < lower_bound) | (current_data[col] > upper_bound)).sum()
+        outlier_pct = (outlier_count / len(current_data)) * 100
+
+        if outlier_pct > outlier_threshold:
+            alerts.append({
+                'id': f'ALERT_{alert_id:03d}',
+                'title': 'High Outlier Percentage',
+                'feature': col,
+                'severity': 'Warning' if outlier_pct < 25 else 'Critical',
+                'description': f'Outlier percentage is {outlier_pct:.2f}%, exceeding threshold of {outlier_threshold}%.',
+                'value': f'Outliers: {outlier_pct:.2f}%',
+                'timestamp': timestamp
+            })
+            alert_id += 1
+
+    # 3. Check for drift (if baseline exists)
+    if baseline_data is not None:
+        for col in numeric_cols[:10]:  # Check first 10 for drift
+            if col in baseline_data.columns:
+                try:
+                    # Calculate drift metrics
+                    baseline_clean = baseline_data[col].dropna()
+                    current_clean = current_data[col].dropna()
+
+                    if len(baseline_clean) > 0 and len(current_clean) > 0:
+                        # KS test
+                        ks_stat, _ = stats.ks_2samp(baseline_clean, current_clean)
+
+                        # PSI
+                        psi = calculate_psi(baseline_clean, current_clean)
+
+                        if psi > psi_threshold:
+                            alerts.append({
+                                'id': f'ALERT_{alert_id:03d}',
+                                'title': 'High Feature Drift Detected',
+                                'feature': col,
+                                'severity': 'Critical' if psi > psi_threshold * 1.5 else 'Warning',
+                                'description': f'PSI value of {psi:.4f} exceeds threshold of {psi_threshold}. Significant distribution shift detected.',
+                                'value': f'PSI: {psi:.4f}',
+                                'timestamp': timestamp
+                            })
+                            alert_id += 1
+
+                        if ks_stat > ks_threshold:
+                            alerts.append({
+                                'id': f'ALERT_{alert_id:03d}',
+                                'title': 'Kolmogorov-Smirnov Test Alert',
+                                'feature': col,
+                                'severity': 'Info',
+                                'description': f'KS statistic of {ks_stat:.4f} exceeds threshold of {ks_threshold}. Distribution may have changed.',
+                                'value': f'KS: {ks_stat:.4f}',
+                                'timestamp': timestamp
+                            })
+                            alert_id += 1
+                except Exception as e:
+                    continue  # Skip if error in calculation
 
     return alerts
 

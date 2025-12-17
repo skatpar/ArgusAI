@@ -337,6 +337,15 @@ LIMIT 10000""",
 
     st.markdown("---")
 
+    # Option to load as baseline or current data
+    st.markdown("**Data Type:**")
+    data_type = st.radio(
+        "Load this data as:",
+        ["Current Data", "Baseline Data"],
+        horizontal=True,
+        help="Baseline data is used for drift detection in Feature Monitoring"
+    )
+
     col1, col2, col3 = st.columns([1, 1, 3])
 
     with col1:
@@ -359,13 +368,21 @@ LIMIT 10000""",
 
                         connector.close()
 
-                        # Set global data source
-                        st.session_state.loaded_data = df
-                        st.session_state.data_source = "ClickHouse: Custom Query"
-                        st.session_state.global_data_source = "clickhouse"
-                        st.session_state.data_features = df.columns.tolist()
+                        if data_type == "Current Data":
+                            # Set global data source for current data
+                            st.session_state.loaded_data = df
+                            st.session_state.data_source = "ClickHouse: Custom Query"
+                            st.session_state.global_data_source = "clickhouse"
+                            st.session_state.data_features = df.columns.tolist()
+                            # Also set monitoring_data for immediate use
+                            st.session_state.monitoring_data = df
+                            st.success(f"✅ Current data loaded: {len(df)} rows, {len(df.columns)} features")
+                        else:
+                            # Set as baseline data
+                            st.session_state.baseline_data = df
+                            st.success(f"✅ Baseline data loaded: {len(df)} rows, {len(df.columns)} features")
+                            st.info("Baseline data is now available for drift analysis in Feature Monitoring")
 
-                        st.success(f"Query executed successfully! Loaded {len(df)} rows, {len(df.columns)} features")
                         st.dataframe(df.head(10), use_container_width=True)
 
                     except Exception as e:
