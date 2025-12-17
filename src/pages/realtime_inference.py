@@ -251,22 +251,62 @@ def show_api_configuration():
     st.markdown("---")
     st.markdown("#### Expected API Format")
 
+    # Add link icon to expand/collapse
+    with st.expander("View API Format Details", expanded=False):
+        st.markdown("""
+        **Important Notes:**
+        - For production API: Use `transaction_id` format (single field)
+        - For development/testing: Use full transaction features (JSON format)
+        - All numeric values should be valid numbers, not null
+        - Categorical fields should match expected values
+        """)
+
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("**Request Format:**")
-        sample_request = {
-            "transaction_amount": 1250.00,
-            "merchant_category": "online",
-            "transaction_hour": 14,
-            "customer_age": 35,
-            "account_age_days": 730,
-            "previous_transactions": 125,
-            "is_foreign": False,
-            "distance_from_home": 5.2,
-            "device_type": "mobile"
-        }
-        st.code(json.dumps(sample_request, indent=2), language="json")
+
+        # Check if we have loaded data features to show actual schema
+        if st.session_state.get('data_features'):
+            st.info("Using actual features from loaded data")
+            features_list = st.session_state.data_features
+            # Create sample request using actual features (show first 10)
+            sample_request = {}
+            for feat in features_list[:10]:
+                if 'amount' in feat.lower() or 'balance' in feat.lower():
+                    sample_request[feat] = 1250.0
+                elif 'count' in feat.lower() or 'num' in feat.lower():
+                    sample_request[feat] = 125
+                elif 'hour' in feat.lower():
+                    sample_request[feat] = 14
+                elif 'age' in feat.lower():
+                    sample_request[feat] = 35
+                elif 'flag' in feat.lower() or 'is_' in feat.lower():
+                    sample_request[feat] = False
+                elif 'distance' in feat.lower() or 'ratio' in feat.lower():
+                    sample_request[feat] = 5.2
+                else:
+                    sample_request[feat] = "sample_value"
+
+            st.code(json.dumps(sample_request, indent=2), language="json")
+
+            if len(features_list) > 10:
+                with st.expander(f"View all {len(features_list)} features"):
+                    st.json(features_list)
+        else:
+            st.markdown("**Standard Transaction Features:**")
+            sample_request = {
+                "transaction_amount": 1250.0,
+                "merchant_category": "online",
+                "transaction_hour": 14,
+                "customer_age": 35,
+                "account_age_days": 730,
+                "previous_transactions": 125,
+                "is_foreign": False,
+                "distance_from_home": 5.2,
+                "device_type": "mobile"
+            }
+            st.code(json.dumps(sample_request, indent=2), language="json")
 
     with col2:
         st.markdown("**Expected Response:**")
@@ -277,6 +317,14 @@ def show_api_configuration():
             "risk_level": "high"
         }
         st.code(json.dumps(sample_response, indent=2), language="json")
+
+        st.markdown("**Response Fields:**")
+        st.markdown("""
+        - `fraud_score`: Probability of fraud (0.0 to 1.0)
+        - `prediction`: "fraud" or "legitimate"
+        - `confidence`: Model confidence (0.0 to 1.0)
+        - `risk_level`: "low", "medium", or "high"
+        """)
 
 
 def show_single_transaction_inference():
