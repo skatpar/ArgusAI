@@ -35,6 +35,10 @@ def show():
     if 'data_source' not in st.session_state:
         st.session_state.data_source = None
 
+    # Query history for quick reload
+    if 'query_history' not in st.session_state:
+        st.session_state.query_history = []
+
     # Create tabs
     tabs = st.tabs([
         "ClickHouse Connection",
@@ -298,6 +302,57 @@ def show_custom_query():
     st.markdown("#### Custom SQL Query")
     st.markdown("Write SQL queries to load data from **stixor_fraud_features_distributed** or other tables")
 
+    # Query History Section
+    if len(st.session_state.query_history) > 0:
+        st.markdown("---")
+
+        col_title, col_clear = st.columns([4, 1])
+        with col_title:
+            st.markdown("**📜 Query History** (Quick Reload)")
+        with col_clear:
+            if st.button("Clear History", key="clear_history"):
+                st.session_state.query_history = []
+                st.success("History cleared")
+                st.rerun()
+
+        with st.expander(f"View {len(st.session_state.query_history)} recent quer(ies)", expanded=False):
+            for idx, history_item in enumerate(reversed(st.session_state.query_history)):
+                col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+
+                with col1:
+                    st.text(f"{history_item['timestamp']}")
+                    st.caption(f"{history_item['query'][:80]}..." if len(history_item['query']) > 80 else history_item['query'])
+
+                with col2:
+                    st.text(f"{history_item['rows']:,} rows")
+                    st.caption(f"{history_item['cols']} cols")
+
+                with col3:
+                    st.text(history_item['data_type'])
+
+                with col4:
+                    if history_item.get('data') is not None:
+                        if st.button("Load", key=f"load_hist_{idx}"):
+                            # Quick load from history
+                            df = history_item['data']
+
+                            if history_item['data_type'] == "Current Data":
+                                st.session_state.loaded_data = df
+                                st.session_state.data_source = "ClickHouse: Quick Load"
+                                st.session_state.global_data_source = "clickhouse"
+                                st.session_state.data_features = df.columns.tolist()
+                                st.session_state.monitoring_data = df
+                                st.success(f"✅ Loaded from history: {len(df):,} rows")
+                            else:
+                                st.session_state.baseline_data = df
+                                st.success(f"✅ Baseline loaded from history: {len(df):,} rows")
+
+                            st.rerun()
+                    else:
+                        st.caption("(Query only)")
+
+                st.markdown("---")
+
     # Sample queries dropdown
     st.markdown("**Sample Queries:**")
     sample_queries = {
@@ -376,14 +431,36 @@ LIMIT 10000""",
                             st.session_state.data_features = df.columns.tolist()
                             # Also set monitoring_data for immediate use
                             st.session_state.monitoring_data = df
-                            st.success(f"✅ Current data loaded: {len(df)} rows, {len(df.columns)} features")
+                            st.success(f"✅ Current data loaded: {len(df):,} rows, {len(df.columns)} features")
                         else:
                             # Set as baseline data
                             st.session_state.baseline_data = df
-                            st.success(f"✅ Baseline data loaded: {len(df)} rows, {len(df.columns)} features")
+                            st.success(f"✅ Baseline data loaded: {len(df):,} rows, {len(df.columns)} features")
                             st.info("Baseline data is now available for drift analysis in Feature Monitoring")
 
                         st.dataframe(df.head(10), use_container_width=True)
+
+                        # Add to query history
+                        from datetime import datetime
+                        history_entry = {
+                            'query': query.strip(),
+                            'rows': len(df),
+                            'cols': len(df.columns),
+                            'data_type': data_type,
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'data': df.copy() if len(df) <= 10000 else None  # Only save data if <= 10k rows
+                        }
+
+                        # Keep only last 10 queries
+                        st.session_state.query_history.append(history_entry)
+                        if len(st.session_state.query_history) > 10:
+                            st.session_state.query_history.pop(0)
+
+                        # Show info about history
+                        if len(df) <= 10000:
+                            st.info("💾 Query saved to history for quick reload")
+                        else:
+                            st.info("📝 Query saved to history (data not cached - exceeds 10k rows)")
 
                     except Exception as e:
                         st.error(f"Query error: {str(e)}")

@@ -101,6 +101,7 @@ def show_feature_drift():
         st.info(f"Using loaded data ({len(current_data):,} records)")
         st.text(f"Source: {st.session_state.get('data_source', 'Unknown')}")
 
+    # Baseline data check and drift analysis
     if st.session_state.baseline_data is not None:
         st.markdown("---")
         st.markdown("#### Drift Analysis")
@@ -326,7 +327,17 @@ def show_feature_drift():
         st.dataframe(drift_summary_df, use_container_width=True, hide_index=True)
 
     else:
-        st.info("👆 Load both baseline and current data to begin drift analysis")
+        st.markdown("---")
+        st.markdown("#### Drift Analysis")
+        st.warning("⚠️ **Baseline data not loaded**")
+        st.info("💡 To perform drift analysis:")
+        st.markdown("""
+        1. Go to **Data Loading** module
+        2. Load your historical/reference data
+        3. Select **"Baseline Data"** as the data type
+        4. Return here to compare with current data
+        """)
+        st.info("Drift analysis compares current data against baseline to detect distribution shifts, which may indicate data quality issues or changes in the underlying patterns.")
 
 
 def calculate_drift_metrics(baseline, current):
@@ -887,6 +898,11 @@ def show_alerts_anomalies():
         if st.session_state.monitoring_data is None:
             st.warning("No data available. Please load data from Data Loading module first.")
         else:
+            # Check if baseline is available for drift alerts
+            if st.session_state.baseline_data is None:
+                st.info("ℹ️ **Note**: Baseline data not loaded. Drift alerts will be skipped.")
+                st.markdown("Load baseline data in the Data Loading module to enable drift detection alerts.")
+
             with st.spinner("Scanning for anomalies..."):
                 alerts = generate_feature_alerts(
                     st.session_state.monitoring_data,
@@ -897,7 +913,13 @@ def show_alerts_anomalies():
                     outlier_threshold
                 )
                 st.session_state.feature_alerts = alerts
-                st.success(f"Scan complete - {len(alerts)} alerts found")
+
+                # Show warning about which alerts were checked
+                if st.session_state.baseline_data is None:
+                    st.success(f"Scan complete - {len(alerts)} alerts found (missing values & outliers only)")
+                    st.info("💡 Load baseline data to also check for drift alerts")
+                else:
+                    st.success(f"Scan complete - {len(alerts)} alerts found (missing values, outliers & drift)")
 
     # Display alerts
     if len(st.session_state.feature_alerts) > 0:
