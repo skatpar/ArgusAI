@@ -159,6 +159,12 @@ if 'data_source' not in st.session_state:
 if 'data_features' not in st.session_state:
     st.session_state.data_features = []
 
+if 'baseline_data' not in st.session_state:
+    st.session_state.baseline_data = None
+
+if 'monitoring_data' not in st.session_state:
+    st.session_state.monitoring_data = None
+
 # Computation engine configuration
 if 'computation_engine' not in st.session_state:
     st.session_state.computation_engine = 'pandas'  # 'pandas' or 'spark'
