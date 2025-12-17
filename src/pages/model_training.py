@@ -15,6 +15,7 @@ import yaml
 sys.path.append('/home/user/ArgusAI')
 
 from src.utils.config_manager import config_manager
+from src.utils.mlflow_tracker import MLflowTracker
 
 
 def show():
@@ -36,6 +37,7 @@ def show():
         "Configuration",
         "Custom Training Script",
         "Built-in Training",
+        "Model Selection & Management",
         "Training History",
         "Model Comparison"
     ])
@@ -50,9 +52,12 @@ def show():
         show_builtin_training()
 
     with tabs[3]:
-        show_training_history()
+        show_model_selection()
 
     with tabs[4]:
+        show_training_history()
+
+    with tabs[5]:
         show_model_comparison()
 
 
@@ -214,7 +219,8 @@ def show_model_settings_config(config):
             "Test Size:",
             0.1, 0.5,
             model_config.get('training', {}).get('test_size', 0.2),
-            0.05
+            0.05,
+            key="config_test_size"
         )
 
         random_state = st.number_input(
@@ -564,7 +570,8 @@ def show_custom_script_training():
             "Test Size:",
             0.1, 0.5,
             model_config.get('training', {}).get('test_size', 0.2),
-            0.05
+            0.05,
+            key="script_test_size"
         )
 
         random_state = st.number_input(
@@ -1246,6 +1253,66 @@ def show_builtin_training():
                 if shap_values is not None:
                     st.info(f"SHAP Values: {shap_path}")
 
+                # Log to MLflow
+                st.markdown("---")
+                st.markdown("#### MLflow Experiment Tracking")
+                with st.spinner("Logging experiment to MLflow..."):
+                    try:
+                        tracker = MLflowTracker()
+                        run_name = f"{algorithm.lower().replace(' ', '_')}_{timestamp}"
+                        tracker.start_run(run_name=run_name)
+
+                        # Log parameters
+                        params = {
+                            'algorithm': algorithm,
+                            'train_samples': len(X_train),
+                            'eval_samples': len(X_eval),
+                            'n_features': len(selected_features),
+                            'train_period_start': str(train_start),
+                            'train_period_end': str(train_end),
+                            'eval_period_start': str(eval_start),
+                            'eval_period_end': str(eval_end),
+                            **hyperparams
+                        }
+                        tracker.log_params(params)
+
+                        # Log metrics
+                        metrics = {
+                            'roc_auc': roc_auc,
+                            'precision': report['weighted avg']['precision'],
+                            'recall': report['weighted avg']['recall'],
+                            'f1_score': report['weighted avg']['f1-score'],
+                            'accuracy': report['accuracy'],
+                            'fraud_rate': float(fraud_rate)
+                        }
+                        tracker.log_metrics(metrics)
+
+                        # Log model
+                        model_type_map = {
+                            'Random Forest': 'random_forest',
+                            'Gradient Boosting': 'gradient_boosting',
+                            'Logistic Regression': 'logistic_regression'
+                        }
+                        tracker.log_model(model, model_type_map.get(algorithm, 'sklearn'))
+
+                        # Log artifacts
+                        tracker.log_artifact(metrics_path)
+                        if feature_importance_data is not None:
+                            tracker.log_artifact(importance_path)
+
+                        # Set tags
+                        tracker.set_tags({
+                            'model_name': model_name,
+                            'data_source': 'clickhouse',
+                            'training_type': 'time_based_split'
+                        })
+
+                        tracker.end_run()
+                        st.success("✓ Experiment logged to MLflow successfully!")
+
+                    except Exception as e:
+                        st.warning(f"MLflow logging failed: {str(e)}. Model saved locally.")
+
                 # Save model to session
                 st.session_state.current_model = {
                     'model': model,
@@ -1261,10 +1328,222 @@ def show_builtin_training():
                     'shap_values': shap_values
                 }
 
+                # Store feature importance in session for feature monitoring
+                if feature_importance_data is not None:
+                    st.session_state.feature_importance = dict(zip(
+                        feature_importance_data['Feature'],
+                        feature_importance_data['Importance']
+                    ))
+                    st.session_state.trained_model = model
+
                 st.info("Model saved to session state and artifacts directory!")
 
             except Exception as e:
                 st.error(f"Training error: {str(e)}")
+
+
+def show_model_selection():
+    """Select and load trained models"""
+    st.markdown("### Model Selection & Management")
+    st.markdown("Load and manage trained models from artifacts directory or custom paths")
+
+    # Get config
+    config = st.session_state.training_config
+    default_models_dir = config.get('artifacts', {}).get('models', {}).get('save_dir', 'artifacts/models')
+
+    # Model source selection
+    st.markdown("---")
+    st.markdown("#### Model Source")
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        source_option = st.radio(
+            "Select model source:",
+            ["Default Artifacts Directory", "Custom Path"],
+            horizontal=True,
+            help="Choose where to load models from"
+        )
+
+    if source_option == "Default Artifacts Directory":
+        models_dir = default_models_dir
+    else:
+        models_dir = st.text_input(
+            "Custom Models Directory:",
+            value="/root/research-dir/dev/jazzcash-fraud-detection/models",
+            help="Enter path to models directory"
+        )
+
+    st.info(f"📁 Current directory: `{models_dir}`")
+
+    # Scan for models
+    st.markdown("---")
+    st.markdown("#### Available Models")
+
+    try:
+        if not os.path.exists(models_dir):
+            st.warning(f"Directory `{models_dir}` does not exist")
+            return
+
+        # Find all model files
+        import glob
+        import joblib
+
+        model_files = []
+        for ext in ['*.joblib', '*.pkl', '*.pickle']:
+            model_files.extend(glob.glob(os.path.join(models_dir, ext)))
+
+        if len(model_files) == 0:
+            st.info("No models found in the specified directory")
+            st.markdown("**Tip:** Train a model using the 'Built-in Training' tab first")
+            return
+
+        st.success(f"Found {len(model_files)} model(s)")
+
+        # Display models with metadata
+        for model_file in sorted(model_files, reverse=True):
+            model_name = os.path.basename(model_file)
+            model_name_no_ext = os.path.splitext(model_name)[0]
+
+            with st.expander(f"📊 {model_name}", expanded=False):
+                col1, col2, col3 = st.columns([2, 2, 1])
+
+                with col1:
+                    st.markdown("**Model Information:**")
+                    st.text(f"File: {model_name}")
+
+                    # Get file size
+                    file_size = os.path.getsize(model_file)
+                    size_mb = file_size / (1024 * 1024)
+                    st.text(f"Size: {size_mb:.2f} MB")
+
+                    # Get modification time
+                    mod_time = datetime.fromtimestamp(os.path.getmtime(model_file))
+                    st.text(f"Modified: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+                with col2:
+                    # Try to load metadata
+                    st.markdown("**Metadata:**")
+
+                    # Check for accompanying metrics file
+                    logs_dir = config.get('artifacts', {}).get('logs', {}).get('save_dir', 'artifacts/logs')
+                    metrics_file = os.path.join(logs_dir, f"{model_name_no_ext}_metrics.json")
+
+                    if os.path.exists(metrics_file):
+                        try:
+                            with open(metrics_file, 'r') as f:
+                                metadata = json.load(f)
+
+                            st.text(f"Algorithm: {metadata.get('algorithm', 'Unknown')}")
+                            st.text(f"ROC-AUC: {metadata.get('roc_auc', 'N/A'):.4f}")
+                            st.text(f"Features: {len(metadata.get('features', []))}")
+
+                            # Training period
+                            train_period = metadata.get('training_period', {})
+                            if train_period:
+                                st.text(f"Train samples: {train_period.get('samples', 'N/A')}")
+
+                            # Hyperparameters
+                            hyperparams = metadata.get('hyperparameters', {})
+                            if hyperparams:
+                                st.markdown("**Hyperparameters:**")
+                                for key, value in hyperparams.items():
+                                    st.text(f"  {key}: {value}")
+
+                        except Exception as e:
+                            st.warning(f"Could not load metadata: {str(e)}")
+                    else:
+                        st.text("No metadata file found")
+
+                with col3:
+                    st.markdown("**Actions:**")
+
+                    if st.button("Load Model", key=f"load_{model_name}"):
+                        try:
+                            # Load the model
+                            with st.spinner("Loading model..."):
+                                model = joblib.load(model_file)
+
+                            # Load metadata if available
+                            metadata = {}
+                            if os.path.exists(metrics_file):
+                                with open(metrics_file, 'r') as f:
+                                    metadata = json.load(f)
+
+                            # Load feature importance if available
+                            importance_file = os.path.join(models_dir, f"{model_name_no_ext}_feature_importance.csv")
+                            feature_importance = None
+                            if os.path.exists(importance_file):
+                                feature_importance = pd.read_csv(importance_file)
+
+                            # Save to session state
+                            st.session_state.current_model = {
+                                'model': model,
+                                'features': metadata.get('features', []),
+                                'algorithm': metadata.get('algorithm', 'Unknown'),
+                                'metrics': {
+                                    'roc_auc': metadata.get('roc_auc', None),
+                                    'report': metadata.get('classification_report', {})
+                                },
+                                'trained_at': metadata.get('trained_at', 'Unknown'),
+                                'model_path': model_file,
+                                'feature_importance': feature_importance,
+                                'shap_values': None
+                            }
+
+                            # Store feature importance for monitoring
+                            if feature_importance is not None:
+                                st.session_state.feature_importance = dict(zip(
+                                    feature_importance['Feature'],
+                                    feature_importance['Importance']
+                                ))
+                                st.session_state.trained_model = model
+
+                            st.success(f"✓ Model loaded successfully: {model_name}")
+                            st.info("Model is now available in session state for inference")
+
+                        except Exception as e:
+                            st.error(f"Failed to load model: {str(e)}")
+
+                    if st.button("View Details", key=f"view_{model_name}"):
+                        if os.path.exists(metrics_file):
+                            with open(metrics_file, 'r') as f:
+                                metadata = json.load(f)
+
+                            st.markdown("---")
+                            st.markdown("##### Full Metadata:")
+                            st.json(metadata)
+                        else:
+                            st.warning("No detailed metadata available")
+
+        # MLflow Experiments Section
+        st.markdown("---")
+        st.markdown("#### MLflow Experiment Runs")
+
+        try:
+            runs_df = MLflowTracker.get_experiment_runs()
+
+            if runs_df is not None and len(runs_df) > 0:
+                st.success(f"Found {len(runs_df)} MLflow experiment run(s)")
+
+                # Display key columns
+                display_cols = ['run_id', 'start_time', 'metrics.roc_auc', 'metrics.f1_score',
+                               'params.algorithm', 'tags.model_name']
+                available_cols = [col for col in display_cols if col in runs_df.columns]
+
+                if available_cols:
+                    st.dataframe(runs_df[available_cols].head(10), use_container_width=True)
+
+                with st.expander("View all runs"):
+                    st.dataframe(runs_df, use_container_width=True)
+            else:
+                st.info("No MLflow experiments found. Train a model to create experiment runs.")
+
+        except Exception as e:
+            st.warning(f"Could not load MLflow experiments: {str(e)}")
+
+    except Exception as e:
+        st.error(f"Error loading models: {str(e)}")
 
 
 def show_training_history():
