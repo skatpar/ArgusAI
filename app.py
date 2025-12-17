@@ -170,6 +170,14 @@ if 'spark_dataframe' not in st.session_state:
 if 'use_spark' not in st.session_state:
     st.session_state.use_spark = False
 
+# Page navigation persistence
+if 'selected_page' not in st.session_state:
+    st.session_state.selected_page = "Data Loading"
+
+# Module list for navigation
+MODULES = ["Data Loading", "Feature Monitoring", "Model Training", "Real-time Inference",
+           "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management"]
+
 # Sidebar
 with st.sidebar:
     st.markdown("""
@@ -181,12 +189,19 @@ with st.sidebar:
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
+    # Get default index from session state
+    try:
+        default_idx = MODULES.index(st.session_state.selected_page)
+    except (ValueError, AttributeError):
+        default_idx = 0
+
     selected = option_menu(
         menu_title=None,
-        options=["Data Loading", "Feature Monitoring", "Model Training", "Real-time Inference", "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management"],
+        options=MODULES,
         icons=["database", "graph-up-arrow", "gear-fill", "lightning-fill", "activity", "cpu", "shield-check", "folder-open"],
         menu_icon=None,
-        default_index=0,
+        default_index=default_idx,
+        key="main_menu",
         styles={
             "container": {"padding": "0", "background-color": "#2b2b2b"},
             "icon": {"color": "#744ada", "font-size": "1.1rem"},
@@ -206,6 +221,10 @@ with st.sidebar:
             },
         }
     )
+
+    # Update session state when page changes
+    if selected != st.session_state.selected_page:
+        st.session_state.selected_page = selected
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
@@ -233,6 +252,23 @@ with st.sidebar:
         st.info("🚀 Spark mode: Large-scale distributed processing")
     else:
         st.info("🐼 Pandas mode: In-memory processing")
+
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+
+    # Session Status Display
+    st.markdown("""
+        <div style='background-color: #1a1a1a; padding: 1rem; border-radius: 8px; border: 1px solid #444;'>
+            <p style='color: #744ada; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>📊 SESSION STATUS</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Show loaded data status
+    if st.session_state.loaded_data is not None:
+        st.success(f"✓ Data loaded: {len(st.session_state.loaded_data):,} rows")
+        if st.session_state.baseline_data is not None:
+            st.info(f"✓ Baseline: {len(st.session_state.baseline_data):,} rows")
+    else:
+        st.warning("No data loaded")
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
