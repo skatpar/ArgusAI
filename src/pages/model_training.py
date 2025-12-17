@@ -804,8 +804,35 @@ def show_builtin_training():
     df['cutoff_date'] = pd.to_datetime(df['cutoff_date'])
     min_date = df['cutoff_date'].min().date()
     max_date = df['cutoff_date'].max().date()
+    date_range_days = (max_date - min_date).days
 
-    st.text(f"Available date range: {min_date} to {max_date}")
+    st.text(f"Available date range: {min_date} to {max_date} ({date_range_days} days)")
+
+    # Calculate smart default values within the valid range
+    if date_range_days == 0:
+        # All data on same day - use same date for all
+        default_train_end = max_date
+        default_eval_start = max_date
+        default_eval_end = max_date
+        st.warning("⚠️ All data is on the same date. Time-based splitting not possible. Consider loading data with a wider date range.")
+    elif date_range_days < 7:
+        # Less than a week - split 70/30
+        split_point = min_date + pd.Timedelta(days=int(date_range_days * 0.7))
+        default_train_end = split_point
+        default_eval_start = split_point + pd.Timedelta(days=1) if split_point < max_date else max_date
+        default_eval_end = max_date
+    elif date_range_days < 30:
+        # Less than a month - split 80/20
+        split_point = min_date + pd.Timedelta(days=int(date_range_days * 0.8))
+        default_train_end = split_point
+        default_eval_start = split_point + pd.Timedelta(days=1) if split_point < max_date else max_date
+        default_eval_end = max_date
+    else:
+        # Sufficient data - use 90 days for training or 80% of range
+        train_days = min(90, int(date_range_days * 0.8))
+        default_train_end = min_date + pd.Timedelta(days=train_days)
+        default_eval_start = default_train_end + pd.Timedelta(days=1) if default_train_end < max_date else max_date
+        default_eval_end = max_date
 
     col1, col2 = st.columns(2)
 
@@ -820,7 +847,7 @@ def show_builtin_training():
         )
         train_end = st.date_input(
             "Training End Date:",
-            value=min_date + pd.Timedelta(days=90),
+            value=default_train_end,
             min_value=min_date,
             max_value=max_date,
             key='train_end'
@@ -830,14 +857,14 @@ def show_builtin_training():
         st.markdown("**Evaluation Period:**")
         eval_start = st.date_input(
             "Evaluation Start Date:",
-            value=train_end + pd.Timedelta(days=1) if train_end < max_date else max_date,
+            value=default_eval_start,
             min_value=min_date,
             max_value=max_date,
             key='eval_start'
         )
         eval_end = st.date_input(
             "Evaluation End Date:",
-            value=min(train_end + pd.Timedelta(days=31), max_date) if train_end < max_date else max_date,
+            value=default_eval_end,
             min_value=min_date,
             max_value=max_date,
             key='eval_end'
