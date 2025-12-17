@@ -14,6 +14,7 @@ import sys
 sys.path.append('/home/user/ArgusAI')
 
 from src.utils.api_client import call_api_inference, test_api_connection
+from src.utils.clickhouse_connector import ClickHouseConnector
 
 
 def show():
@@ -880,9 +881,9 @@ def simulate_local_inference(transaction_data):
 
 
 def show_batch_inference():
-    """Batch inference from CSV upload"""
+    """Batch inference from CSV upload or ClickHouse"""
     st.markdown("### Batch Inference")
-    st.markdown("Upload a CSV file to score multiple transactions")
+    st.markdown("Load data from CSV or ClickHouse to score multiple transactions")
 
     # Check API configuration
     api_configured = bool(st.session_state.api_config.get('endpoint_url'))
@@ -899,113 +900,203 @@ def show_batch_inference():
 
     st.markdown("---")
 
-    # File upload
-    uploaded_file = st.file_uploader(
-        "Upload CSV file:",
-        type="csv",
-        help="CSV should contain transaction features as columns"
+    # Data source selector
+    st.markdown("**Data Source:**")
+    data_source = st.radio(
+        "Select data source:",
+        ["CSV File", "ClickHouse Query"],
+        horizontal=True,
+        help="Choose whether to upload a CSV file or query ClickHouse database"
     )
 
-    if uploaded_file is not None:
-        try:
-            df = pd.read_csv(uploaded_file)
+    df = None
 
-            st.success(f"Loaded {len(df)} transactions")
-            st.dataframe(df.head(10), use_container_width=True)
+    if data_source == "CSV File":
+        # File upload
+        uploaded_file = st.file_uploader(
+            "Upload CSV file:",
+            type="csv",
+            help="CSV should contain transaction features as columns"
+        )
 
-            if st.button("Run Batch Inference", type="primary"):
-                with st.spinner(f"Processing {len(df)} transactions..."):
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
+        if uploaded_file is not None:
+            try:
+                df = pd.read_csv(uploaded_file)
+                st.success(f"✅ Loaded {len(df):,} transactions from CSV")
+                st.dataframe(df.head(10), use_container_width=True)
+            except Exception as e:
+                st.error(f"Error reading CSV file: {str(e)}")
 
-                    results = []
+    else:  # ClickHouse Query
+        # Check if ClickHouse is connected
+        ch_connected = st.session_state.get('ch_config', {}).get('connected', False)
 
-                    for idx, row in df.iterrows():
-                        status_text.text(f"Processing transaction {idx + 1}/{len(df)}")
+        if not ch_connected:
+            st.warning("⚠️ ClickHouse not connected. Please configure connection in Data Loading module first.")
+        else:
+            st.markdown("**ClickHouse Query:**")
 
-                        transaction_data = row.to_dict()
+            # Sample queries
+            sample_queries = {
+                "Recent transactions (limit 1K)": "SELECT * FROM stixor_fraud_features_distributed LIMIT 1000",
+                "By date range": """SELECT * FROM stixor_fraud_features_distributed
+WHERE cutoff_date BETWEEN '2025-01-01' AND '2025-12-31'
+LIMIT 5000""",
+                "Payment gateway transactions": """SELECT * FROM stixor_fraud_features_distributed
+WHERE trx_channel='Payment Gateway'
+    AND cutoff_date >= today() - 30
+LIMIT 5000""",
+                "Custom query": ""
+            }
 
-                        if inference_mode == "External API (KNIME)" and api_configured:
-                            result = call_api_inference(
-                                endpoint_url=st.session_state.api_config['endpoint_url'],
-                                transaction_data=transaction_data,
-                                auth_type=st.session_state.api_config['auth_type'],
-                                api_key=st.session_state.api_config.get('api_key', ''),
-                                timeout=st.session_state.api_config.get('timeout', 30),
-                                content_type=st.session_state.api_config.get('content_type', 'application/json'),
-                                custom_headers=st.session_state.api_config.get('custom_headers', {})
-                            )
+            selected_sample = st.selectbox(
+                "Select a sample query or write your own:",
+                list(sample_queries.keys()),
+                index=0
+            )
 
-                            if result['success']:
-                                response_data = result['data']
-                                fraud_score = (
-                                    response_data.get('fraud_score') or
-                                    response_data.get('score') or
-                                    response_data.get('probability', 0.5)
+            default_query = sample_queries[selected_sample]
+
+            query = st.text_area(
+                "SQL Query:",
+                value=default_query,
+                height=150,
+                help="Enter any valid ClickHouse SQL query"
+            )
+
+            col1, col2 = st.columns([1, 4])
+
+            with col1:
+                if st.button("Load Data", type="primary"):
+                    if not query.strip():
+                        st.warning("Please enter a query")
+                    else:
+                        with st.spinner("Executing query..."):
+                            try:
+                                connector = ClickHouseConnector(
+                                    host=st.session_state.ch_config['host'],
+                                    port=st.session_state.ch_config['port'],
+                                    username=st.session_state.ch_config['username'],
+                                    password=st.session_state.ch_config['password'],
+                                    database=st.session_state.ch_config['database']
                                 )
-                                prediction = response_data.get('prediction', 'unknown')
-                            else:
-                                fraud_score = None
-                                prediction = 'error'
+                                connector.connect()
+
+                                df = connector.execute_custom_query(query)
+
+                                connector.close()
+
+                                # Store in session state for persistence
+                                st.session_state.batch_inference_data = df
+
+                                st.success(f"✅ Loaded {len(df):,} transactions from ClickHouse")
+                                st.dataframe(df.head(10), use_container_width=True)
+
+                            except Exception as e:
+                                st.error(f"Query execution failed: {str(e)}")
+
+            # Check if data was already loaded in this session
+            if 'batch_inference_data' in st.session_state and st.session_state.batch_inference_data is not None:
+                df = st.session_state.batch_inference_data
+                if df is not None and len(df) > 0:
+                    st.info(f"📊 Using previously loaded data: {len(df):,} transactions")
+                    with st.expander("Preview loaded data"):
+                        st.dataframe(df.head(10), use_container_width=True)
+
+    # Run inference if data is loaded
+    if df is not None and len(df) > 0:
+        st.markdown("---")
+
+        if st.button("Run Batch Inference", type="primary"):
+            with st.spinner(f"Processing {len(df)} transactions..."):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+
+                results = []
+
+                for idx, row in df.iterrows():
+                    status_text.text(f"Processing transaction {idx + 1}/{len(df)}")
+
+                    transaction_data = row.to_dict()
+
+                    if inference_mode == "External API (KNIME)" and api_configured:
+                        result = call_api_inference(
+                            endpoint_url=st.session_state.api_config['endpoint_url'],
+                            transaction_data=transaction_data,
+                            auth_type=st.session_state.api_config['auth_type'],
+                            api_key=st.session_state.api_config.get('api_key', ''),
+                            timeout=st.session_state.api_config.get('timeout', 30),
+                            content_type=st.session_state.api_config.get('content_type', 'application/json'),
+                            custom_headers=st.session_state.api_config.get('custom_headers', {})
+                        )
+
+                        if result['success']:
+                            response_data = result['data']
+                            fraud_score = (
+                                response_data.get('fraud_score') or
+                                response_data.get('score') or
+                                response_data.get('probability', 0.5)
+                            )
+                            prediction = response_data.get('prediction', 'unknown')
                         else:
-                            sim_result = simulate_local_inference(transaction_data)
-                            fraud_score = sim_result['fraud_score']
-                            prediction = sim_result['prediction']
+                            fraud_score = None
+                            prediction = 'error'
+                    else:
+                        sim_result = simulate_local_inference(transaction_data)
+                        fraud_score = sim_result['fraud_score']
+                        prediction = sim_result['prediction']
 
-                        results.append({
-                            'fraud_score': fraud_score,
-                            'prediction': prediction
-                        })
+                    results.append({
+                        'fraud_score': fraud_score,
+                        'prediction': prediction
+                    })
 
-                        progress_bar.progress((idx + 1) / len(df))
+                    progress_bar.progress((idx + 1) / len(df))
 
-                    status_text.text("Processing complete!")
+                status_text.text("Processing complete!")
 
-                    # Add results to dataframe
-                    results_df = df.copy()
-                    results_df['fraud_score'] = [r['fraud_score'] for r in results]
-                    results_df['prediction'] = [r['prediction'] for r in results]
+                # Add results to dataframe
+                results_df = df.copy()
+                results_df['fraud_score'] = [r['fraud_score'] for r in results]
+                results_df['prediction'] = [r['prediction'] for r in results]
 
-                    st.success("Batch inference completed!")
+                st.success("Batch inference completed!")
 
-                    # Summary metrics
-                    st.markdown("---")
-                    st.markdown("#### Batch Results Summary")
+                # Summary metrics
+                st.markdown("---")
+                st.markdown("#### Batch Results Summary")
 
-                    col1, col2, col3, col4 = st.columns(4)
+                col1, col2, col3, col4 = st.columns(4)
 
-                    with col1:
-                        total = len(results)
-                        st.metric("Total Transactions", total)
+                with col1:
+                    total = len(results)
+                    st.metric("Total Transactions", total)
 
-                    with col2:
-                        fraud_count = len([r for r in results if r['prediction'] == 'fraud'])
-                        st.metric("Flagged as Fraud", fraud_count)
+                with col2:
+                    fraud_count = len([r for r in results if r['prediction'] == 'fraud'])
+                    st.metric("Flagged as Fraud", fraud_count)
 
-                    with col3:
-                        fraud_rate = (fraud_count / total * 100) if total > 0 else 0
-                        st.metric("Fraud Rate", f"{fraud_rate:.2f}%")
+                with col3:
+                    fraud_rate = (fraud_count / total * 100) if total > 0 else 0
+                    st.metric("Fraud Rate", f"{fraud_rate:.2f}%")
 
-                    with col4:
-                        avg_score = np.mean([r['fraud_score'] for r in results if r['fraud_score'] is not None])
-                        st.metric("Avg Fraud Score", f"{avg_score:.2%}")
+                with col4:
+                    avg_score = np.mean([r['fraud_score'] for r in results if r['fraud_score'] is not None])
+                    st.metric("Avg Fraud Score", f"{avg_score:.2%}")
 
-                    # Display results
-                    st.markdown("---")
-                    st.markdown("#### Detailed Results")
-                    st.dataframe(results_df, use_container_width=True)
+                # Display results
+                st.markdown("---")
+                st.markdown("#### Detailed Results")
+                st.dataframe(results_df, use_container_width=True)
 
-                    # Download button
-                    csv = results_df.to_csv(index=False)
-                    st.download_button(
-                        label="Download Results CSV",
-                        data=csv,
-                        file_name=f"batch_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv"
-                    )
-
-        except Exception as e:
-            st.error(f"Error processing file: {str(e)}")
+                # Download button
+                csv = results_df.to_csv(index=False)
+                st.download_button(
+                    label="Download Results CSV",
+                    data=csv,
+                    file_name=f"batch_predictions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
 
 
 def show_inference_history():
