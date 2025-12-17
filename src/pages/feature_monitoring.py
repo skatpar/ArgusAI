@@ -188,37 +188,122 @@ def show_feature_drift():
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-        # Drift over time simulation
+        # Drift over time - Calculate actual PSI trends from data
         st.markdown("---")
         st.markdown("#### Drift Trends Over Time")
 
-        time_periods = pd.date_range(end=datetime.now(), periods=30, freq='D')
-        psi_values = np.random.uniform(0.05, 0.3, 30)
-        psi_values = np.sort(psi_values)  # Simulate increasing drift
+        # Check if we have a date column for time-based analysis
+        date_col = None
+        if 'cutoff_date' in current.columns:
+            date_col = 'cutoff_date'
+        elif 'timestamp' in current.columns:
+            date_col = 'timestamp'
 
-        drift_df = pd.DataFrame({
-            'date': time_periods,
-            'PSI': psi_values
-        })
+        if date_col:
+            try:
+                # Convert to datetime
+                current_copy = current.copy()
+                current_copy[date_col] = pd.to_datetime(current_copy[date_col])
 
-        fig3 = go.Figure()
-        fig3.add_trace(go.Scatter(x=drift_df['date'], y=drift_df['PSI'],
-                                 mode='lines+markers', name='PSI',
-                                 line=dict(color='#744ada', width=2)))
+                # Get date range
+                min_date = current_copy[date_col].min()
+                max_date = current_copy[date_col].max()
+                date_range_days = (max_date - min_date).days
 
-        # Add threshold lines
-        fig3.add_hline(y=0.1, line_dash="dash", line_color="#744ada",
-                      annotation_text="Low Drift Threshold")
-        fig3.add_hline(y=0.2, line_dash="dash", line_color="#666666",
-                      annotation_text="High Drift Threshold")
+                # Determine appropriate window size
+                if date_range_days > 60:
+                    window_days = 7  # Weekly windows
+                    periods = min(30, date_range_days // window_days)
+                elif date_range_days > 30:
+                    window_days = 3  # 3-day windows
+                    periods = min(20, date_range_days // window_days)
+                else:
+                    window_days = 1  # Daily windows
+                    periods = min(date_range_days, 30)
 
-        fig3.update_layout(
-            title=f"{selected_feature} - PSI Trend (Last 30 Days)",
-            xaxis_title="Date",
-            yaxis_title="PSI",
-            height=400
-        )
-        st.plotly_chart(fig3, use_container_width=True)
+                if periods < 2:
+                    st.info(f"Insufficient date range ({date_range_days} days) for trend analysis. Need at least {window_days*2} days.")
+                else:
+                    # Calculate PSI for each time window
+                    psi_trend = []
+                    dates = []
+
+                    # Create time windows
+                    for i in range(periods):
+                        window_end = max_date - pd.Timedelta(days=i * window_days)
+                        window_start = window_end - pd.Timedelta(days=window_days)
+
+                        # Filter data for this window
+                        window_data = current_copy[
+                            (current_copy[date_col] >= window_start) &
+                            (current_copy[date_col] <= window_end)
+                        ]
+
+                        if len(window_data) > 10:  # Need minimum samples
+                            try:
+                                window_feature = window_data[selected_feature].dropna()
+                                baseline_feature = baseline[selected_feature].dropna()
+
+                                if len(window_feature) > 0 and len(baseline_feature) > 0:
+                                    psi = calculate_psi(baseline_feature, window_feature)
+                                    psi_trend.append(psi)
+                                    dates.append(window_end.date())
+                            except:
+                                continue
+
+                    if len(psi_trend) > 0:
+                        # Reverse to show chronological order
+                        psi_trend.reverse()
+                        dates.reverse()
+
+                        drift_df = pd.DataFrame({
+                            'date': dates,
+                            'PSI': psi_trend
+                        })
+
+                        fig3 = go.Figure()
+                        fig3.add_trace(go.Scatter(
+                            x=drift_df['date'],
+                            y=drift_df['PSI'],
+                            mode='lines+markers',
+                            name='PSI',
+                            line=dict(color='#744ada', width=2),
+                            marker=dict(size=6)
+                        ))
+
+                        # Add threshold lines
+                        fig3.add_hline(y=0.1, line_dash="dash", line_color="#744ada",
+                                      annotation_text="Low Drift Threshold")
+                        fig3.add_hline(y=0.2, line_dash="dash", line_color="#666666",
+                                      annotation_text="High Drift Threshold")
+
+                        fig3.update_layout(
+                            title=f"{selected_feature} - PSI Trend ({len(dates)} time periods, {window_days}-day windows)",
+                            xaxis_title="Date",
+                            yaxis_title="PSI",
+                            height=400
+                        )
+                        st.plotly_chart(fig3, use_container_width=True)
+
+                        # Summary stats
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Avg PSI", f"{np.mean(psi_trend):.4f}")
+                        with col2:
+                            st.metric("Max PSI", f"{np.max(psi_trend):.4f}")
+                        with col3:
+                            st.metric("Min PSI", f"{np.min(psi_trend):.4f}")
+                        with col4:
+                            drift_direction = "📈 Increasing" if psi_trend[-1] > psi_trend[0] else "📉 Decreasing"
+                            st.metric("Trend", drift_direction)
+                    else:
+                        st.warning("Could not calculate PSI trend - insufficient data in time windows")
+
+            except Exception as e:
+                st.warning(f"Could not calculate time-based PSI trend: {str(e)}")
+                st.info("Showing overall PSI between baseline and current data instead")
+        else:
+            st.info(f"Time-based PSI trend requires 'cutoff_date' or 'timestamp' column. Showing overall drift only.")
 
         # All features drift summary
         st.markdown("---")
