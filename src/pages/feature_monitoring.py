@@ -20,6 +20,20 @@ def show():
     st.markdown('<p class="main-header">Feature Monitoring</p>', unsafe_allow_html=True)
     st.markdown("Monitor feature drift, data quality, and feature health")
 
+    # Check if data is loaded from Data Loading module
+    if st.session_state.get('loaded_data') is not None:
+        st.info(f"Using loaded data: {st.session_state.get('data_source')} ({len(st.session_state.loaded_data):,} rows)")
+
+        # Use loaded data as monitoring data
+        if st.session_state.get('monitoring_data') is None:
+            st.session_state.monitoring_data = st.session_state.loaded_data
+    else:
+        st.warning("No data loaded. Please load data from the Data Loading module first.")
+        if st.button("Load Sample Data for Demo"):
+            st.session_state.monitoring_data = generate_fraud_data(n_samples=10000, fraud_rate=0.05)
+            st.success("Sample data loaded for demonstration")
+            st.rerun()
+
     # Initialize session state
     if 'monitoring_data' not in st.session_state:
         st.session_state.monitoring_data = None
