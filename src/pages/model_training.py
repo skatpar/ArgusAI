@@ -551,46 +551,126 @@ def show_custom_script_training():
     st.info("Default values loaded from Configuration. Customize here for this run only.")
 
     # Common training arguments
+    st.markdown("**Data & Date Configuration:**")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**Model Parameters:**")
-        model_type = st.selectbox(
-            "Model Type:",
-            ["random_forest", "gradient_boosting", "logistic_regression",
-             "xgboost", "lightgbm", "neural_network"],
-            index=["random_forest", "gradient_boosting", "logistic_regression",
-                   "xgboost", "lightgbm", "neural_network"].index(
-                       model_config.get('type', 'random_forest')
-                   ),
-            help="Type of model to train"
+        train_start_date = st.date_input(
+            "Training Start Date:",
+            value=pd.to_datetime("2025-05-01"),
+            help="Start date for training data (YYYY-MM-DD)"
+        )
+        train_end_date = st.date_input(
+            "Training End Date:",
+            value=pd.to_datetime("2025-06-30"),
+            help="End date for training data (YYYY-MM-DD)"
         )
 
+    with col2:
+        eval_start_date = st.date_input(
+            "Evaluation Start Date:",
+            value=pd.to_datetime("2025-07-01"),
+            help="Start date for evaluation data (YYYY-MM-DD)"
+        )
+        eval_end_date = st.date_input(
+            "Evaluation End Date:",
+            value=pd.to_datetime("2025-07-31"),
+            help="End date for evaluation data (YYYY-MM-DD)"
+        )
+
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("**Model Selection:**")
+        model_types = st.multiselect(
+            "Model Type(s):",
+            ["random_forest", "decision_tree", "logistic_regression", "gbt", "all"],
+            default=["random_forest"],
+            help="Select one or more model types to train (select 'all' to train all models)"
+        )
+
+    with col2:
+        st.markdown("**Data Sampling:**")
         test_size = st.slider(
             "Test Size:",
             0.1, 0.5,
             model_config.get('training', {}).get('test_size', 0.2),
             0.05,
-            key="script_test_size"
+            key="script_test_size",
+            help="Proportion of data to use for testing"
         )
 
+        sample_rate = st.slider(
+            "Non-Fraud Sample Rate:",
+            0.01, 1.0,
+            0.1,
+            0.01,
+            help="Downsampling rate for non-fraud data (0.1 = keep 10%)"
+        )
+
+    with col3:
+        st.markdown("**Training Options:**")
         random_state = st.number_input(
             "Random State:",
             0, 9999,
-            model_config.get('training', {}).get('random_state', 42)
+            model_config.get('training', {}).get('random_state', 42),
+            help="Random seed for reproducibility"
+        )
+
+        save_model_option = st.checkbox("Save Model", value=True, help="Save trained models to disk")
+
+    st.markdown("---")
+    st.markdown("**Model Hyperparameters:**")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        epochs = st.number_input(
+            "Epochs/Max Iterations:",
+            1, 1000,
+            default_args.get('epochs', 100),
+            help="Maximum number of training iterations (for GBT/Logistic Regression)"
+        )
+
+        n_estimators = st.number_input(
+            "Number of Trees (Random Forest):",
+            10, 1000,
+            100,
+            help="Number of trees in Random Forest"
         )
 
     with col2:
-        st.markdown("**Training Options:**")
-        epochs = st.number_input(
-            "Epochs/Iterations:",
-            1, 1000,
-            default_args.get('epochs', 100)
+        max_depth = st.number_input(
+            "Max Depth:",
+            1, 50,
+            10,
+            help="Maximum tree depth (for tree-based models)"
         )
 
-        early_stopping = st.checkbox("Early Stopping", value=True)
+        learning_rate = st.number_input(
+            "Learning Rate (GBT):",
+            0.001, 1.0,
+            0.1,
+            0.001,
+            format="%.3f",
+            help="Learning rate for Gradient Boosted Trees"
+        )
 
-        save_model = st.checkbox("Save Model", value=True)
+    with col3:
+        reg_param = st.number_input(
+            "Regularization (Logistic Regression):",
+            0.001, 10.0,
+            0.01,
+            0.001,
+            format="%.3f",
+            help="Regularization parameter for Logistic Regression"
+        )
+
+        output_dir = st.text_input(
+            "Output Directory:",
+            value="/root/@dfs-ai-app2/models",
+            help="Directory to save trained models and logs"
+        )
 
     # Feature Selection
     st.markdown("---")
@@ -601,13 +681,8 @@ def show_custom_script_training():
 
         st.info(f"Found {len(available_features)} features in loaded data")
 
-        # Auto-detect target column
-        possible_targets = ['fraud_flag', 'is_fraud', 'fraud', 'label', 'target', 'y']
-        detected_target = None
-        for target in possible_targets:
-            if target in available_features:
-                detected_target = target
-                break
+        # Auto-detect target column (only fraud_flag)
+        detected_target = 'fraud_flag' if 'fraud_flag' in available_features else None
 
         col1, col2 = st.columns([3, 1])
 
@@ -640,7 +715,7 @@ def show_custom_script_training():
         if detected_target:
             st.success(f"Target column detected: **{detected_target}**")
         else:
-            st.warning("Target column not automatically detected. Make sure your data has 'is_fraud' or similar column.")
+            st.warning("Target column 'fraud_flag' not found in data. Make sure your data has 'fraud_flag' column.")
 
         if len(selected_features) == 0:
             st.error("Please select at least one feature")
@@ -676,22 +751,42 @@ def show_custom_script_training():
     # Build command
     st.markdown("#### Command Preview")
 
+    # Determine if using train_all.py or custom script
+    is_train_all = "train_all.py" in selected_script
+
     command_parts = ["python", script_path]
 
-    if data_path:
-        command_parts.extend(["--data_path", data_path])
+    # Add model types
+    if model_types:
+        command_parts.append("--model_type")
+        command_parts.extend(model_types)
 
+    # Add date parameters
     command_parts.extend([
-        "--model_type", model_type,
-        "--test_size", str(test_size),
-        "--random_state", str(random_state),
-        "--epochs", str(epochs)
+        "--train_start_date", train_start_date.strftime('%Y-%m-%d'),
+        "--train_end_date", train_end_date.strftime('%Y-%m-%d'),
+        "--eval_start_date", eval_start_date.strftime('%Y-%m-%d'),
+        "--eval_end_date", eval_end_date.strftime('%Y-%m-%d'),
     ])
 
-    if early_stopping:
-        command_parts.append("--early_stopping")
+    # Add training parameters
+    command_parts.extend([
+        "--test_size", str(test_size),
+        "--random_state", str(random_state),
+        "--sample_rate", str(sample_rate),
+        "--epochs", str(epochs),
+        "--n_estimators", str(n_estimators),
+        "--max_depth", str(max_depth),
+        "--learning_rate", str(learning_rate),
+        "--reg_param", str(reg_param),
+    ])
 
-    if save_model:
+    # Add output directory
+    if output_dir:
+        command_parts.extend(["--output_dir", output_dir])
+
+    # Add save model flag
+    if save_model_option:
         command_parts.append("--save_model")
 
     for arg_name, arg_value in custom_args.items():

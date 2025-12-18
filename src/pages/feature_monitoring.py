@@ -112,10 +112,9 @@ def show_feature_drift():
         # Select feature to analyze
         numeric_features = baseline.select_dtypes(include=[np.number]).columns.tolist()
 
-        # Remove target columns
-        for target in ['is_fraud', 'fraud_flag']:
-            if target in numeric_features:
-                numeric_features.remove(target)
+        # Remove target column
+        if 'fraud_flag' in numeric_features:
+            numeric_features.remove('fraud_flag')
 
         selected_feature = st.selectbox("Select feature to analyze:", numeric_features)
 
@@ -498,9 +497,8 @@ def show_data_quality():
         st.markdown("#### Outlier Detection")
 
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        for target in ['is_fraud', 'fraud_flag']:
-            if target in numeric_cols:
-                numeric_cols.remove(target)
+        if 'fraud_flag' in numeric_cols:
+            numeric_cols.remove('fraud_flag')
 
         outlier_summary = []
         outlier_details = {}  # Store actual outlier values
@@ -667,53 +665,13 @@ def show_data_quality():
                     completeness = (1 - df.isnull().sum().sum() / (len(df) * len(df.columns))) * 100
                     st.info(f"All data is from {max_date.date()}. Current completeness: {completeness:.2f}%")
             else:
-                # No time column - use simulated trend for demonstration
-                st.warning("No time column found (cutoff_date/timestamp/date). Using sample trend for demonstration.")
-                dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
-                completeness_trend = np.random.uniform(92, 99, 30)
-                validity_trend = np.random.uniform(94, 99, 30)
-
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(x=dates, y=completeness_trend, mode='lines+markers',
-                                        name='Completeness', line=dict(color='#744ada')))
-                fig.add_trace(go.Scatter(x=dates, y=validity_trend, mode='lines+markers',
-                                        name='Validity', line=dict(color='#744ada')))
-
-                fig.add_hline(y=95, line_dash="dash", line_color="#000000",
-                             annotation_text="Target Threshold (95%)")
-
-                fig.update_layout(
-                            title='Data Quality Trends',
-                    xaxis_title='Date',
-                    yaxis_title='Quality Score (%)',
-                    height=400
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                # No time column - cannot show trends
+                st.warning("⚠️ No time column found (cutoff_date/timestamp/date).")
+                st.info("💡 Load data with a time column to view quality trends over time.")
 
         except Exception as e:
             st.error(f"Error calculating quality trends: {str(e)}")
-            st.info("Showing sample quality trend for demonstration")
-            # Fallback to sample data
-            dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
-            completeness_trend = np.random.uniform(92, 99, 30)
-            validity_trend = np.random.uniform(94, 99, 30)
-
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=dates, y=completeness_trend, mode='lines+markers',
-                                    name='Completeness', line=dict(color='#744ada')))
-            fig.add_trace(go.Scatter(x=dates, y=validity_trend, mode='lines+markers',
-                                    name='Validity', line=dict(color='#744ada')))
-
-            fig.add_hline(y=95, line_dash="dash", line_color="#000000",
-                         annotation_text="Target Threshold (95%)")
-
-            fig.update_layout(
-                title='Data Quality Trends',
-                xaxis_title='Date',
-                yaxis_title='Quality Score (%)',
-                height=400
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            st.info("💡 Ensure your data has proper time columns and numeric/string features for quality analysis.")
 
     else:
         st.info("👆 Load data to begin quality monitoring")
@@ -782,9 +740,8 @@ def show_feature_statistics():
 
     # Feature selector
     numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-    for target in ['is_fraud', 'fraud_flag']:
-        if target in numeric_features:
-            numeric_features.remove(target)
+    if 'fraud_flag' in numeric_features:
+        numeric_features.remove('fraud_flag')
 
     selected_feature = st.selectbox("Select feature:", numeric_features)
 
@@ -984,9 +941,8 @@ def generate_feature_alerts(current_data, baseline_data, psi_threshold, ks_thres
 
         # Get numeric columns
         numeric_cols = current_data.select_dtypes(include=[np.number]).columns.tolist()
-        for target in ['is_fraud', 'fraud_flag']:
-            if target in numeric_cols:
-                numeric_cols.remove(target)
+        if 'fraud_flag' in numeric_cols:
+            numeric_cols.remove('fraud_flag')
 
         # 1. Check for missing values
         try:
@@ -1104,16 +1060,11 @@ def show_distribution_analysis():
         df = st.session_state.monitoring_data
 
         # Determine fraud flag column
-        fraud_col = None
-        if 'fraud_flag' in df.columns:
-            fraud_col = 'fraud_flag'
-        elif 'is_fraud' in df.columns:
-            fraud_col = 'is_fraud'
+        fraud_col = 'fraud_flag' if 'fraud_flag' in df.columns else None
 
         numeric_features = df.select_dtypes(include=[np.number]).columns.tolist()
-        for target in ['is_fraud', 'fraud_flag']:
-            if target in numeric_features:
-                numeric_features.remove(target)
+        if 'fraud_flag' in numeric_features:
+            numeric_features.remove('fraud_flag')
 
         selected_feature = st.selectbox("Select feature to analyze:", numeric_features, key='dist_feature')
 
@@ -1188,37 +1139,39 @@ def show_feature_importance_tracking():
             df = st.session_state.monitoring_data.copy()
 
             # Check for target column
-            target_col = 'fraud_flag' if 'fraud_flag' in df.columns else None
-            if target_col is None:
-                target_col = 'is_fraud' if 'is_fraud' in df.columns else None
+            if 'fraud_flag' not in df.columns:
+                st.error("⚠️ No fraud_flag column found in loaded data.")
+                st.info("💡 Please load data with fraud_flag column to calculate feature importance.")
+                return
 
-            if target_col is not None:
-                # Calculate correlation with target
-                numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-                if target_col in numeric_cols:
-                    numeric_cols.remove(target_col)
+            # Calculate correlation with target
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            if 'fraud_flag' in numeric_cols:
+                numeric_cols.remove('fraud_flag')
 
-                correlations = {}
-                for col in numeric_cols:
-                    if len(df[col].dropna()) > 0:
-                        corr = abs(df[col].corr(df[target_col]))
-                        if not np.isnan(corr):
-                            correlations[col] = corr
+            if len(numeric_cols) == 0:
+                st.warning("No numeric features found in data for correlation analysis.")
+                return
 
-                # Get top 5 features by correlation
-                features_sorted = sorted(correlations.items(), key=lambda x: x[1], reverse=True)
-                top_features = [f[0] for f in features_sorted[:5]]
-                feature_imp_dict = dict(features_sorted[:5])
-            else:
-                st.warning("No fraud_flag or is_fraud column found. Using sample features for demonstration.")
-                top_features = ['transaction_amount', 'transactions_24h', 'distance_from_home',
-                               'merchant_category', 'transaction_hour']
-                feature_imp_dict = {f: np.random.uniform(0.1, 0.4) for f in top_features}
+            correlations = {}
+            for col in numeric_cols:
+                if len(df[col].dropna()) > 0:
+                    corr = abs(df[col].corr(df['fraud_flag']))
+                    if not np.isnan(corr):
+                        correlations[col] = corr
+
+            if len(correlations) == 0:
+                st.warning("Could not calculate correlations for any features.")
+                return
+
+            # Get top 5 features by correlation
+            features_sorted = sorted(correlations.items(), key=lambda x: x[1], reverse=True)
+            top_features = [f[0] for f in features_sorted[:5]]
+            feature_imp_dict = dict(features_sorted[:5])
         else:
-            st.warning("No model or data loaded. Using sample features for demonstration.")
-            top_features = ['transaction_amount', 'transactions_24h', 'distance_from_home',
-                           'merchant_category', 'transaction_hour']
-            feature_imp_dict = {f: np.random.uniform(0.1, 0.4) for f in top_features}
+            st.warning("⚠️ No model or data loaded.")
+            st.info("💡 Train a model or load data to view feature importance tracking.")
+            return
 
         st.markdown("#### Feature Importance Trends")
 
@@ -1232,7 +1185,7 @@ def show_feature_importance_tracking():
                     time_col = col
                     break
 
-            target_col = 'fraud_flag' if 'fraud_flag' in df.columns else ('is_fraud' if 'is_fraud' in df.columns else None)
+            target_col = 'fraud_flag' if 'fraud_flag' in df.columns else None
 
             if time_col is not None and target_col is not None:
                 # Calculate importance over time windows
@@ -1419,30 +1372,4 @@ def show_feature_importance_tracking():
 
     except Exception as e:
         st.error(f"Error calculating feature importance: {str(e)}")
-        st.info("Showing sample feature importance for demonstration")
-
-        # Fallback to sample data
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
-        features = ['transaction_amount', 'transactions_24h', 'distance_from_home',
-                   'merchant_category', 'transaction_hour']
-
-        importance_data = []
-        for feature in features:
-            base_importance = np.random.uniform(0.1, 0.3)
-            trend = np.random.uniform(-0.05, 0.05, 30)
-            importance = base_importance + np.cumsum(trend)
-            importance = np.clip(importance, 0, 1)
-
-            for date, imp in zip(dates, importance):
-                importance_data.append({
-                    'date': date,
-                    'feature': feature,
-                    'importance': imp
-                })
-
-        importance_df = pd.DataFrame(importance_data)
-
-        fig = px.line(importance_df, x='date', y='importance', color='feature',
-                     title='Feature Importance Over Time',
-                     labels={'importance': 'Importance Score', 'date': 'Date'})
-        st.plotly_chart(fig, use_container_width=True)
+        st.info("💡 Ensure your data has time columns and proper feature columns for importance tracking.")

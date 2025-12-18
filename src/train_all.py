@@ -509,25 +509,34 @@ class SimpleFraudPipeline:
         
         return df
     
-    def run(self, model_types: list = None):
+    def run(self, model_types: list = None, eval_start: str = None, eval_end: str = None,
+            sample_rate: float = None, save_models: bool = True):
         """Execute the complete pipeline for all models."""
         if model_types is None:
             model_types = ['random_forest', 'logistic_regression', 'gbt','decision_tree']
-        
+
+        # Get dates from config or parameters
+        train_start = self.config['data']['start_date']
+        train_end = self.config['data']['end_date']
+        eval_start = eval_start or '2025-07-01'
+        eval_end = eval_end or '2025-07-31'
+        sample_rate = sample_rate if sample_rate is not None else 0.1
+
         try:
             start_time = time.time()
-            
+
             # Initialize
             self.initialize_spark()
-            
-            # Load training data (2025-03-01 to 2025-06-30)
+
+            # Load training data
             self.logger.info("=" * 80)
             self.logger.info("LOADING TRAINING DATA")
             self.logger.info("=" * 80)
-            train_df = self.load_data_by_period('2025-05-01', '2025-06-30')
-            
-            # Downsample non-fraud data to 10%
-            train_df_balanced = self.downsample_data(train_df, sample_rate=100/554601)
+            self.logger.info(f"Training period: {train_start} to {train_end}")
+            train_df = self.load_data_by_period(train_start, train_end)
+
+            # Downsample non-fraud data
+            train_df_balanced = self.downsample_data(train_df, sample_rate=sample_rate)
             
             # Store results for all models
             all_results = {}
@@ -544,8 +553,10 @@ class SimpleFraudPipeline:
                 self.train_pipeline(train_df_balanced, model_type)
                 model_duration = time.time() - model_start
                 self.logger.info(f"✅ {model_type} completed in {model_duration:.2f}s")
-                # Save model
-                self.save_pipeline(model_type)
+
+                # Save model if requested
+                if save_models:
+                    self.save_pipeline(model_type)
 
                 # Feature importance (if supported)
                 try:
@@ -553,7 +564,12 @@ class SimpleFraudPipeline:
                 except Exception as e:
                     self.logger.warning(f"Could not extract feature importance: {str(e)}")
 
-            eval_df = self.load_data_by_period('2025-07-01', '2025-07-31', eval=True)
+            # Load evaluation data
+            self.logger.info("=" * 80)
+            self.logger.info("LOADING EVALUATION DATA")
+            self.logger.info("=" * 80)
+            self.logger.info(f"Evaluation period: {eval_start} to {eval_end}")
+            eval_df = self.load_data_by_period(eval_start, eval_end, eval=True)
 
             for model_type in model_types:
                 # Evaluate on test data
@@ -700,26 +716,97 @@ def load_config(config_path: Optional[str] = None) -> Dict:
 
 def main():
     parser = argparse.ArgumentParser(description='Multi-Model Fraud Detection Pipeline')
+
+    # Config and model selection
     parser.add_argument('--config', type=str, help='Config file path')
-    parser.add_argument('--models', type=str, nargs='+', 
+    parser.add_argument('--model_type', '--models', type=str, nargs='+', dest='models',
                        choices=['decision_tree', 'random_forest', 'logistic_regression', 'gbt', 'all'],
                        default=['all'], help='Model types to train (default: all)')
-    
+
+    # Data parameters
+    parser.add_argument('--train_start_date', type=str, help='Training start date (YYYY-MM-DD)')
+    parser.add_argument('--train_end_date', type=str, help='Training end date (YYYY-MM-DD)')
+    parser.add_argument('--eval_start_date', type=str, help='Evaluation start date (YYYY-MM-DD)')
+    parser.add_argument('--eval_end_date', type=str, help='Evaluation end date (YYYY-MM-DD)')
+    parser.add_argument('--test_size', type=float, default=0.2, help='Test size ratio (default: 0.2)')
+    parser.add_argument('--sample_rate', type=float, default=0.1, help='Non-fraud downsampling rate (default: 0.1)')
+
+    # Training parameters
+    parser.add_argument('--random_state', '--random_seed', type=int, dest='random_state',
+                       default=42, help='Random seed (default: 42)')
+    parser.add_argument('--epochs', '--max_iter', type=int, dest='epochs',
+                       help='Number of training epochs/iterations')
+    parser.add_argument('--early_stopping', action='store_true',
+                       help='Enable early stopping')
+    parser.add_argument('--save_model', action='store_true', default=True,
+                       help='Save trained models (default: True)')
+
+    # Model-specific parameters
+    parser.add_argument('--n_estimators', '--num_trees', type=int, dest='n_estimators',
+                       help='Number of trees for Random Forest')
+    parser.add_argument('--max_depth', type=int, help='Maximum tree depth')
+    parser.add_argument('--learning_rate', '--step_size', type=float, dest='learning_rate',
+                       help='Learning rate for GBT')
+    parser.add_argument('--reg_param', type=float, help='Regularization parameter')
+
+    # Output parameters
+    parser.add_argument('--output_dir', type=str, help='Output directory for models and logs')
+
     args = parser.parse_args()
-    
+
     # Load config
     config = load_config(args.config)
-    
+
+    # Override config with command-line arguments
+    if args.train_start_date:
+        config['data']['start_date'] = args.train_start_date
+    if args.train_end_date:
+        config['data']['end_date'] = args.train_end_date
+    if args.random_state:
+        config['training']['random_seed'] = args.random_state
+    if args.output_dir:
+        config['model_dir'] = args.output_dir
+        config['log_dir'] = os.path.join(args.output_dir, 'logs')
+        config['analysis_dir'] = os.path.join(args.output_dir, 'analysis')
+
+    # Override model-specific parameters
+    if args.epochs:
+        if 'logistic_regression' in config['models']:
+            config['models']['logistic_regression']['max_iter'] = args.epochs
+        if 'gbt' in config['models']:
+            config['models']['gbt']['max_iter'] = args.epochs
+
+    if args.n_estimators:
+        if 'random_forest' in config['models']:
+            config['models']['random_forest']['num_trees'] = args.n_estimators
+
+    if args.max_depth:
+        for model_key in ['decision_tree', 'random_forest', 'gbt']:
+            if model_key in config['models']:
+                config['models'][model_key]['max_depth'] = args.max_depth
+
+    if args.learning_rate:
+        if 'gbt' in config['models']:
+            config['models']['gbt']['step_size'] = args.learning_rate
+
+    if args.reg_param:
+        if 'logistic_regression' in config['models']:
+            config['models']['logistic_regression']['reg_param'] = args.reg_param
+
     # Determine which models to train
     if 'all' in args.models:
         model_types = ['decision_tree', 'random_forest', 'logistic_regression', 'gbt']
     else:
         model_types = args.models
-    
+
     # Run pipeline
     pipeline = SimpleFraudPipeline(config)
-    success = pipeline.run(model_types)
-    
+    success = pipeline.run(model_types,
+                          eval_start=args.eval_start_date,
+                          eval_end=args.eval_end_date,
+                          sample_rate=args.sample_rate,
+                          save_models=args.save_model)
+
     sys.exit(0 if success else 1)
 
 
