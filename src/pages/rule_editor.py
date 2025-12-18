@@ -11,9 +11,11 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import json
 import sys
+import os
 sys.path.append('/home/user/ArgusAI')
 from src.utils.data_generator import generate_fraud_data
 from src.utils.rule_engine import RuleEngine, Rule
+from src.utils.sql_rule_loader import SQLRuleLoader, create_sample_rules
 
 
 def show():
@@ -27,20 +29,27 @@ def show():
         st.session_state.rule_results = None
     if 'monitoring_data' not in st.session_state:
         st.session_state.monitoring_data = None
+    if 'sql_rules' not in st.session_state:
+        st.session_state.sql_rules = None
+    if 'sql_rule_results' not in st.session_state:
+        st.session_state.sql_rule_results = None
 
     # Create tabs
-    tabs = st.tabs(["Rule Manager", "Rule Testing", "Monitoring Dashboard", "Rule Performance"])
+    tabs = st.tabs(["Rule Manager", "SQL Rules", "Rule Testing", "Monitoring Dashboard", "Rule Performance"])
 
     with tabs[0]:
         show_rule_manager()
 
     with tabs[1]:
-        show_rule_testing()
+        show_sql_rules()
 
     with tabs[2]:
-        show_monitoring_dashboard()
+        show_rule_testing()
 
     with tabs[3]:
+        show_monitoring_dashboard()
+
+    with tabs[4]:
         show_rule_performance()
 
 
@@ -427,6 +436,293 @@ def show_rule_manager():
         st.metric("Testing", testing_rules)
 
 
+
+
+def show_sql_rules():
+    """SQL-Based Rule Management - Load and execute SQL rules from files"""
+    st.markdown("### SQL-Based Fraud Detection Rules")
+    st.markdown("Load SQL WHERE clause rules from files and execute on loaded data")
+
+    # Initialize SQL rule loader
+    rules_dir = "/root/research-dir/dev/jazzcash-fraud-detection/rules"
+
+    # Rules directory configuration
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        custom_dir = st.text_input(
+            "Rules Directory:",
+            value=rules_dir,
+            help="Directory containing SQL rule files (.sql or .txt)"
+        )
+    with col2:
+        st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh", key="refresh_sql_rules"):
+            st.session_state.sql_rules = None
+            st.rerun()
+
+    # Check if directory exists
+    if not os.path.exists(custom_dir):
+        st.warning(f"⚠️ Directory does not exist: {custom_dir}")
+        st.info("💡 Create sample rules to get started:")
+
+        if st.button("📝 Create Sample SQL Rules"):
+            try:
+                create_sample_rules(custom_dir)
+                st.success(f"✅ Created sample SQL rule files in {custom_dir}")
+                st.info("Sample rules include: high amounts, velocity checks, unusual patterns")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error creating sample rules: {str(e)}")
+        return
+
+    # Load SQL rules
+    st.markdown("---")
+    st.markdown("#### Load SQL Rules")
+
+    loader = SQLRuleLoader(custom_dir)
+
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        if st.button("📥 Load All SQL Rules", type="primary"):
+            try:
+                with st.spinner("Loading SQL rules..."):
+                    rules = loader.load_rules_from_directory()
+                    st.session_state.sql_rules = loader
+                    st.success(f"✅ Loaded {len(rules)} SQL rule(s)")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error loading rules: {str(e)}")
+
+    with col2:
+        if st.button("📝 Create Samples"):
+            try:
+                create_sample_rules(custom_dir)
+                st.success("✅ Sample rules created")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+    with col3:
+        if st.button("🗑️ Clear Loaded"):
+            st.session_state.sql_rules = None
+            st.session_state.sql_rule_results = None
+            st.rerun()
+
+    # Display loaded rules
+    if st.session_state.sql_rules is not None:
+        loader = st.session_state.sql_rules
+        st.markdown("---")
+        st.markdown("#### Loaded SQL Rules")
+
+        if len(loader.rules) == 0:
+            st.info("No rules loaded. Load rules from directory or create samples.")
+            return
+
+        # Summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Rules", len(loader.rules))
+        with col2:
+            high_pri = len([r for r in loader.rules.values() if r.priority in ['High', 'Critical']])
+            st.metric("High Priority", high_pri)
+        with col3:
+            medium_pri = len([r for r in loader.rules.values() if r.priority == 'Medium'])
+            st.metric("Medium Priority", medium_pri)
+        with col4:
+            low_pri = len([r for r in loader.rules.values() if r.priority == 'Low'])
+            st.metric("Low Priority", low_pri)
+
+        # Display rule summary
+        st.markdown("**Rule Summary:**")
+        summary_df = loader.get_rule_summary()
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+        # Execute rules on loaded data
+        st.markdown("---")
+        st.markdown("#### Execute Rules on Data")
+
+        if st.session_state.loaded_data is None:
+            st.warning("⚠️ No data loaded.")
+            st.info("💡 Go to **Data Loading** module to load transaction data first.")
+            return
+
+        data = st.session_state.loaded_data
+        st.info(f"📊 Loaded data: {len(data):,} rows")
+
+        # Check for fraud_flag column
+        if 'fraud_flag' not in data.columns:
+            st.warning("⚠️ No fraud_flag column in data. Performance metrics will not be available.")
+            target_col = None
+        else:
+            target_col = 'fraud_flag'
+            fraud_count = data[target_col].sum()
+            st.info(f"🔍 Total fraud cases in data: {fraud_count:,} ({fraud_count/len(data)*100:.2f}%)")
+
+        if st.button("▶️ Execute All SQL Rules", type="primary"):
+            try:
+                with st.spinner(f"Executing {len(loader.rules)} rules..."):
+                    results = loader.execute_rules(data, target_col or 'fraud_flag')
+                    st.session_state.sql_rule_results = results
+                    st.success(f"✅ Executed {len(results)} rule(s)")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error executing rules: {str(e)}")
+                st.exception(e)
+
+        # Display results
+        if st.session_state.sql_rule_results is not None:
+            st.markdown("---")
+            st.markdown("#### Rule Execution Results")
+
+            results = st.session_state.sql_rule_results
+
+            # Overall statistics
+            total_flags = sum([r['triggered_count'] for r in results.values()])
+            st.metric("Total Flags Raised", f"{total_flags:,}")
+
+            # Performance metrics table
+            st.markdown("**Rule Performance:**")
+
+            perf_data = []
+            for rule_id, result in results.items():
+                rule = result['rule']
+                metrics = result.get('metrics', {})
+
+                perf_data.append({
+                    'Rule ID': rule.rule_id,
+                    'Rule Name': rule.name,
+                    'Priority': rule.priority,
+                    'Triggered': result['triggered_count'],
+                    'Detection Rate %': metrics.get('detection_rate', 0),
+                    'Precision %': metrics.get('precision', 0),
+                    'Recall %': metrics.get('recall', 0),
+                    'F1 Score': metrics.get('f1_score', 0),
+                    'True Positives': metrics.get('true_positives', 0),
+                    'False Positives': metrics.get('false_positives', 0)
+                })
+
+            perf_df = pd.DataFrame(perf_data)
+
+            # Color code by performance
+            def color_performance(val):
+                if isinstance(val, (int, float)):
+                    if val >= 80:
+                        return 'background-color: #d4edda'
+                    elif val >= 60:
+                        return 'background-color: #fff3cd'
+                    elif val > 0:
+                        return 'background-color: #f8d7da'
+                return ''
+
+            styled_df = perf_df.style.applymap(
+                color_performance,
+                subset=['Detection Rate %', 'Precision %', 'Recall %']
+            )
+
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+            # Visualization
+            st.markdown("---")
+            st.markdown("**Rule Performance Comparison:**")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Detection rate chart
+                fig = px.bar(
+                    perf_df,
+                    x='Rule Name',
+                    y='Detection Rate %',
+                    color='Priority',
+                    title='Detection Rate by Rule',
+                    color_discrete_map={'Low': '#17a2b8', 'Medium': '#ffc107', 'High': '#fd7e14', 'Critical': '#dc3545'}
+                )
+                fig.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col2:
+                # Precision vs Recall
+                fig = px.scatter(
+                    perf_df,
+                    x='Recall %',
+                    y='Precision %',
+                    size='Triggered',
+                    color='Priority',
+                    hover_data=['Rule Name'],
+                    title='Precision vs Recall',
+                    color_discrete_map={'Low': '#17a2b8', 'Medium': '#ffc107', 'High': '#fd7e14', 'Critical': '#dc3545'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Detailed results per rule
+            st.markdown("---")
+            st.markdown("**Detailed Rule Results:**")
+
+            for rule_id, result in results.items():
+                rule = result['rule']
+                metrics = result.get('metrics', {})
+
+                with st.expander(f"📋 {rule.rule_id}: {rule.name} - Triggered {result['triggered_count']} times"):
+                    col1, col2 = st.columns([2, 1])
+
+                    with col1:
+                        st.markdown("**Rule Details:**")
+                        st.text(f"Priority: {rule.priority}")
+                        st.text(f"Description: {rule.description}")
+                        st.markdown("**SQL Condition:**")
+                        st.code(rule.sql_condition, language='sql')
+
+                    with col2:
+                        st.markdown("**Performance Metrics:**")
+                        if metrics:
+                            st.metric("Detection Rate", f"{metrics.get('detection_rate', 0):.2f}%")
+                            st.metric("Precision", f"{metrics.get('precision', 0):.2f}%")
+                            st.metric("F1 Score", f"{metrics.get('f1_score', 0):.4f}")
+
+                    if metrics:
+                        st.markdown("**Confusion Matrix:**")
+                        cm_col1, cm_col2, cm_col3, cm_col4 = st.columns(4)
+                        with cm_col1:
+                            st.metric("True Positives", metrics.get('true_positives', 0))
+                        with cm_col2:
+                            st.metric("False Positives", metrics.get('false_positives', 0))
+                        with cm_col3:
+                            st.metric("False Negatives", metrics.get('false_negatives', 0))
+                        with cm_col4:
+                            st.metric("True Negatives", metrics.get('true_negatives', 0))
+
+            # Export results
+            st.markdown("---")
+            st.markdown("**Export Results:**")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                csv = perf_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Performance CSV",
+                    data=csv,
+                    file_name=f"sql_rule_performance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+
+            with col2:
+                # Export flagged transactions
+                all_flagged_indices = set()
+                for result in results.values():
+                    all_flagged_indices.update(result['triggered_indices'])
+
+                if len(all_flagged_indices) > 0:
+                    flagged_data = data.loc[list(all_flagged_indices)]
+                    flagged_csv = flagged_data.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Flagged Transactions",
+                        data=flagged_csv,
+                        file_name=f"flagged_transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv"
+                    )
+
+    else:
+        st.info("👆 Click 'Load All SQL Rules' to get started")
 def show_rule_testing():
     st.markdown("### Rule Testing")
     st.markdown("Test rules against sample or real data")
