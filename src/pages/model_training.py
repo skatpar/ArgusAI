@@ -1370,7 +1370,7 @@ def show_model_selection():
     else:
         models_dir = st.text_input(
             "Custom Models Directory:",
-            value="/root/research-dir/dev/jazzcash-fraud-detection/models",
+            value="/root/@dfs-ai-app2/models",
             help="Enter path to models directory"
         )
 
@@ -1385,22 +1385,80 @@ def show_model_selection():
             st.warning(f"Directory `{models_dir}` does not exist")
             return
 
-        # Find all model files
+        # Find all model files and directories
         import glob
         import joblib
 
         model_files = []
-        for ext in ['*.joblib', '*.pkl', '*.pickle']:
+        model_dirs = []
+
+        # Check for model files directly in the directory
+        for ext in ['*.joblib', '*.pkl', '*.pickle', '*.json']:
             model_files.extend(glob.glob(os.path.join(models_dir, ext)))
 
-        if len(model_files) == 0:
+        # Also check for model directories (subdirectories that might contain models)
+        if os.path.isdir(models_dir):
+            for item in os.listdir(models_dir):
+                item_path = os.path.join(models_dir, item)
+                if os.path.isdir(item_path):
+                    model_dirs.append((item, item_path))
+
+        if len(model_files) == 0 and len(model_dirs) == 0:
             st.info("No models found in the specified directory")
             st.markdown("**Tip:** Train a model using the 'Built-in Training' tab first")
             return
 
-        st.success(f"Found {len(model_files)} model(s)")
+        if len(model_files) > 0:
+            st.success(f"Found {len(model_files)} model file(s)")
+        if len(model_dirs) > 0:
+            st.info(f"Found {len(model_dirs)} model director(ies)")
 
-        # Display models with metadata
+        # Display model directories first
+        if len(model_dirs) > 0:
+            st.markdown("##### Model Directories")
+            for dir_name, dir_path in sorted(model_dirs, reverse=True):
+                with st.expander(f"📁 {dir_name}", expanded=False):
+                    col1, col2, col3 = st.columns([2, 2, 1])
+
+                    with col1:
+                        st.markdown("**Directory Information:**")
+                        st.text(f"Name: {dir_name}")
+                        st.text(f"Path: {dir_path}")
+
+                        # Count files in directory
+                        try:
+                            files_in_dir = os.listdir(dir_path)
+                            st.text(f"Files: {len(files_in_dir)}")
+
+                            # Get modification time
+                            mod_time = datetime.fromtimestamp(os.path.getmtime(dir_path))
+                            st.text(f"Modified: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                        except Exception as e:
+                            st.text(f"Error reading directory: {str(e)}")
+
+                    with col2:
+                        st.markdown("**Contents:**")
+                        try:
+                            # Show first few files
+                            files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))][:5]
+                            for f in files:
+                                st.caption(f"• {f}")
+                            if len(files_in_dir) > 5:
+                                st.caption(f"... and {len(files_in_dir) - 5} more")
+                        except:
+                            st.caption("Could not list files")
+
+                    with col3:
+                        st.markdown("**Actions:**")
+                        st.caption(f"Model directory")
+                        st.caption(f"Explore to see models")
+
+                    st.markdown("---")
+
+        # Display model files
+        if len(model_files) > 0:
+            st.markdown("##### Model Files")
+
         for model_file in sorted(model_files, reverse=True):
             model_name = os.path.basename(model_file)
             model_name_no_ext = os.path.splitext(model_name)[0]
