@@ -344,7 +344,8 @@ def show_single_transaction_inference():
                 "Inference Mode:",
                 ["External API", "Local Simulation"],
                 horizontal=True,
-                help="Choose between external API or local simulation"
+                help="Choose between external API or local simulation",
+                key="single_tx_inference_mode"
             )
         else:
             inference_mode = "External API"
@@ -365,7 +366,8 @@ def show_single_transaction_inference():
         input_method = st.radio(
             "Input Method:",
             ["JSON Editor", "Form Input"],
-            horizontal=True
+            horizontal=True,
+            key="single_tx_input_method"
         )
 
         if input_method == "JSON Editor":
