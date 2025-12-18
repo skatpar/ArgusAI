@@ -328,52 +328,173 @@ def show_api_configuration():
 
 
 def show_single_transaction_inference():
-    """Single transaction inference with JSON input"""
+    """Single transaction inference - simplified transaction ID input"""
     st.markdown("### Single Transaction Inference")
-    st.markdown("Score individual transactions using JSON input or transaction ID")
+    st.markdown("Score individual transactions by entering transaction ID")
 
     # Check API configuration
     api_configured = bool(st.session_state.api_config.get('endpoint_url'))
-    is_production_api = st.session_state.api_config.get('request_format') == 'transaction_id'
 
     if api_configured:
-        st.info(f"Using API: {st.session_state.api_config['endpoint_url']}")
-
-        if not is_production_api:
-            inference_mode = st.radio(
-                "Inference Mode:",
-                ["External API", "Local Simulation"],
-                horizontal=True,
-                help="Choose between external API or local simulation",
-                key="single_tx_inference_mode"
-            )
-        else:
-            inference_mode = "External API"
-            st.info("Using Production API - requires transaction_id format")
+        st.success(f"✅ API Configured: {st.session_state.api_config['endpoint_url']}")
     else:
-        st.warning("External API not configured. Using local simulation mode.")
-        inference_mode = "Local Simulation"
-        is_production_api = False
+        st.warning("⚠️ API not configured. Please configure in API Configuration tab.")
+        st.info("💡 Go to 'API Configuration' tab to set up your model endpoint.")
+        return
 
     st.markdown("---")
 
-    # Transaction input methods
-    if is_production_api:
-        # Simple transaction ID input for production API
-        show_transaction_id_input(inference_mode, api_configured)
-    else:
-        # Full transaction data input
-        input_method = st.radio(
-            "Input Method:",
-            ["JSON Editor", "Form Input"],
-            horizontal=True,
-            key="single_tx_input_method"
+    # Simple transaction ID input
+    st.markdown("#### Transaction ID Input")
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        transaction_id = st.text_input(
+            "Transaction ID:",
+            placeholder="Enter transaction ID (e.g., 83881056341)",
+            help="Enter the transaction ID to score",
+            key="single_tx_id_input"
         )
 
-        if input_method == "JSON Editor":
-            show_json_input(inference_mode, api_configured)
-        else:
-            show_form_input(inference_mode, api_configured)
+    with col2:
+        st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+        score_button = st.button("🔍 Score Transaction", type="primary", use_container_width=True)
+
+    if score_button:
+        if not transaction_id.strip():
+            st.error("❌ Please enter a transaction ID")
+            return
+
+        st.markdown("---")
+        st.markdown("#### Prediction Results")
+
+        with st.spinner("🔄 Calling API..."):
+            try:
+                # Prepare request data
+                transaction_data = {"transaction_id": transaction_id.strip()}
+
+                # Call API
+                result = call_api_inference(
+                    endpoint_url=st.session_state.api_config['endpoint_url'],
+                    transaction_data=transaction_data,
+                    auth_type=st.session_state.api_config.get('auth_type', 'None'),
+                    api_key=st.session_state.api_config.get('api_key', ''),
+                    timeout=st.session_state.api_config.get('timeout', 30),
+                    content_type=st.session_state.api_config.get('content_type', 'application/json'),
+                    custom_headers=st.session_state.api_config.get('custom_headers', {})
+                )
+
+                # Log the request
+                st.session_state.api_request_log.append(result)
+                if len(st.session_state.api_request_log) > 100:
+                    st.session_state.api_request_log = st.session_state.api_request_log[-100:]
+
+                # Add to inference history
+                history_entry = {
+                    'timestamp': result['timestamp'],
+                    'transaction_id': transaction_id,
+                    'prediction': result.get('prediction'),
+                    'fraud_score': result.get('fraud_score'),
+                    'success': result['success'],
+                    'latency_ms': result.get('latency_ms', 0)
+                }
+                st.session_state.inference_history.append(history_entry)
+                if len(st.session_state.inference_history) > 100:
+                    st.session_state.inference_history = st.session_state.inference_history[-100:]
+
+                # Display results
+                if result['success']:
+                    # Success metrics
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        st.metric("Status", "✅ SUCCESS", delta="200 OK")
+
+                    with col2:
+                        st.metric("Latency", f"{result['latency_ms']:.0f}ms")
+
+                    with col3:
+                        st.metric("Transaction ID", transaction_id)
+
+                    with col4:
+                        timestamp = result['timestamp'].split()[1] if ' ' in result['timestamp'] else result['timestamp']
+                        st.metric("Time", timestamp)
+
+                    st.markdown("---")
+
+                    # Prediction results
+                    prediction = result.get('prediction')
+                    fraud_score = result.get('fraud_score')
+
+                    if fraud_score is not None:
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            # Fraud score gauge
+                            st.markdown("##### Fraud Score")
+                            score_pct = fraud_score * 100 if fraud_score <= 1 else fraud_score
+
+                            # Color based on score
+                            if score_pct >= 70:
+                                color = "#dc3545"  # Red
+                                risk_level = "🔴 HIGH RISK"
+                            elif score_pct >= 40:
+                                color = "#ffc107"  # Yellow
+                                risk_level = "🟡 MEDIUM RISK"
+                            else:
+                                color = "#28a745"  # Green
+                                risk_level = "🟢 LOW RISK"
+
+                            st.markdown(f"""
+                                <div style='text-align: center; padding: 2rem; background-color: {color}22; border-radius: 10px; border: 2px solid {color};'>
+                                    <h1 style='color: {color}; margin: 0; font-size: 3rem;'>{score_pct:.1f}%</h1>
+                                    <p style='margin: 0.5rem 0 0 0; font-size: 1.2rem; font-weight: 600;'>{risk_level}</p>
+                                </div>
+                            """, unsafe_allow_html=True)
+
+                        with col2:
+                            # Prediction details
+                            st.markdown("##### Prediction Details")
+
+                            if prediction is not None:
+                                pred_label = "🚨 FRAUD" if prediction == 1 else "✅ LEGITIMATE"
+                                pred_color = "#dc3545" if prediction == 1 else "#28a745"
+
+                                st.markdown(f"""
+                                    <div style='padding: 1rem; background-color: {pred_color}22; border-radius: 8px; border: 1px solid {pred_color};'>
+                                        <p style='margin: 0; font-size: 1.1rem; font-weight: 600; color: {pred_color};'>Prediction: {pred_label}</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.markdown("**Model Response:**")
+                            st.json(result.get('response', {}))
+
+                    else:
+                        st.warning("⚠️ API response received but no fraud score found")
+                        st.markdown("**Raw Response:**")
+                        st.json(result.get('response', {}))
+
+                else:
+                    # Error display
+                    st.error(f"❌ API Error: {result.get('error', 'Unknown error')}")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if result.get('status_code'):
+                            st.metric("Status Code", result['status_code'])
+                    with col2:
+                        if result.get('latency_ms'):
+                            st.metric("Response Time", f"{result['latency_ms']:.0f}ms")
+
+                    if result.get('response'):
+                        st.markdown("**Response Details:**")
+                        st.code(str(result['response']))
+
+            except Exception as e:
+                st.error(f"❌ Error calling API: {str(e)}")
+                st.exception(e)
 
 
 def show_transaction_id_input(inference_mode, api_configured):
