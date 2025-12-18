@@ -5,6 +5,14 @@ A comprehensive dashboard for fraud detection, feature monitoring, model monitor
 
 import streamlit as st
 from streamlit_option_menu import option_menu
+import sys
+import os
+import hashlib
+from datetime import datetime
+
+# Add project root to path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from src.utils.database import ArgusDatabase
 
 # Page configuration
 st.set_page_config(
@@ -146,6 +154,38 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ===== SESSION PERSISTENCE WITH DATABASE =====
+# Initialize database
+db = ArgusDatabase()
+
+# Generate or retrieve persistent session ID
+if 'session_id' not in st.session_state:
+    # Create a session ID based on browser session context
+    # Use Streamlit's script run context to maintain consistency
+    import streamlit.runtime.scriptrunner as sr
+    try:
+        ctx = sr.get_script_run_ctx()
+        if ctx:
+            # Use session ID from runtime context for consistency
+            st.session_state.session_id = hashlib.md5(ctx.session_id.encode()).hexdigest()
+        else:
+            # Fallback to timestamp-based ID
+            st.session_state.session_id = hashlib.md5(datetime.now().isoformat().encode()).hexdigest()
+    except:
+        # Fallback if script context unavailable
+        st.session_state.session_id = hashlib.md5(datetime.now().isoformat().encode()).hexdigest()
+
+    # Try to restore session from database
+    saved_session = db.get_session_state(st.session_state.session_id)
+
+    if saved_session:
+        # Restore last page
+        st.session_state.restored_page = saved_session['last_page']
+        st.session_state.restored_engine = saved_session['computation_engine']
+        st.session_state.session_restored = True
+    else:
+        st.session_state.session_restored = False
+
 # Initialize global session state for data source management
 if 'global_data_source' not in st.session_state:
     st.session_state.global_data_source = None  # 'clickhouse' or 'csv'
@@ -165,24 +205,51 @@ if 'baseline_data' not in st.session_state:
 if 'monitoring_data' not in st.session_state:
     st.session_state.monitoring_data = None
 
-# Computation engine configuration
+# Computation engine configuration with restoration
 if 'computation_engine' not in st.session_state:
-    st.session_state.computation_engine = 'pandas'  # 'pandas' or 'spark'
+    if st.session_state.get('session_restored') and st.session_state.get('restored_engine'):
+        st.session_state.computation_engine = st.session_state.restored_engine
+    else:
+        st.session_state.computation_engine = 'pandas'  # 'pandas' or 'spark'
 
 # Spark-specific session state
 if 'spark_dataframe' not in st.session_state:
     st.session_state.spark_dataframe = None
 
 if 'use_spark' not in st.session_state:
-    st.session_state.use_spark = False
+    st.session_state.use_spark = (st.session_state.computation_engine == 'spark')
 
-# Page navigation persistence
+# Page navigation persistence with restoration
 if 'selected_page' not in st.session_state:
-    st.session_state.selected_page = "Data Loading"
+    if st.session_state.get('session_restored') and st.session_state.get('restored_page'):
+        st.session_state.selected_page = st.session_state.restored_page
+    else:
+        st.session_state.selected_page = "Data Loading"
 
 # Module list for navigation
 MODULES = ["Data Loading", "Feature Monitoring", "Model Training", "Real-time Inference",
            "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management"]
+
+# Helper function to save session state to database
+def save_session_to_db():
+    """Save current session state to database for persistence"""
+    try:
+        # Prepare state data (only serializable data)
+        state_data = {
+            'loaded_data_rows': len(st.session_state.loaded_data) if st.session_state.loaded_data is not None else 0,
+            'baseline_data_rows': len(st.session_state.baseline_data) if st.session_state.baseline_data is not None else 0,
+            'data_source': st.session_state.data_source,
+        }
+
+        db.save_session_state(
+            session_id=st.session_state.session_id,
+            last_page=st.session_state.selected_page,
+            state_data=state_data,
+            computation_engine=st.session_state.computation_engine
+        )
+    except Exception as e:
+        # Silent fail - don't disrupt user experience
+        pass
 
 # Sidebar
 with st.sidebar:
@@ -231,33 +298,62 @@ with st.sidebar:
     # Update session state when page changes
     if selected != st.session_state.selected_page:
         st.session_state.selected_page = selected
+        # Save to database for persistence across refreshes
+        save_session_to_db()
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # Computation Engine Configuration
+    # Computation Engine Configuration - Enhanced visibility
     st.markdown("""
-        <div style='background-color: #1a1a1a; padding: 1rem; border-radius: 8px; border: 1px solid #444;'>
-            <p style='color: #744ada; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>⚙️ COMPUTATION ENGINE</p>
+        <div style='background-color: #2d1b4e; padding: 1.2rem; border-radius: 10px; border: 2px solid #744ada; box-shadow: 0 4px 6px rgba(116, 74, 218, 0.3);'>
+            <p style='color: #ffffff; font-weight: 700; font-size: 1.1rem; margin: 0; text-align: center;'>⚙️ COMPUTATION KERNEL</p>
         </div>
     """, unsafe_allow_html=True)
 
-    computation_choice = st.radio(
-        "Select engine:",
-        ["Pandas", "Spark"],
-        index=0 if st.session_state.computation_engine == 'pandas' else 1,
-        help="Pandas: In-memory processing (smaller datasets)\nSpark: Distributed processing (large datasets)",
-        key='engine_radio'
+    st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    # Show current kernel status prominently
+    current_kernel = "🐼 Pandas" if st.session_state.computation_engine == 'pandas' else "🚀 Spark"
+    st.markdown(f"""
+        <div style='background-color: #1a1a1a; padding: 0.8rem; border-radius: 8px; border: 1px solid #444; text-align: center;'>
+            <p style='color: #00d4aa; font-weight: 600; font-size: 1rem; margin: 0;'>Active: {current_kernel}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+
+    # Kernel selection with selectbox for better visibility
+    computation_options = {
+        "🐼 Pandas (In-Memory)": "pandas",
+        "🚀 Spark (Distributed)": "spark"
+    }
+
+    current_display = "🐼 Pandas (In-Memory)" if st.session_state.computation_engine == 'pandas' else "🚀 Spark (Distributed)"
+
+    computation_choice = st.selectbox(
+        "Switch Kernel:",
+        options=list(computation_options.keys()),
+        index=list(computation_options.keys()).index(current_display),
+        help="Pandas: Best for datasets < 10GB (faster for small data)\nSpark: Best for datasets > 10GB (distributed processing)",
+        key='engine_selector'
     )
 
-    if computation_choice.lower() != st.session_state.computation_engine:
-        st.session_state.computation_engine = computation_choice.lower()
-        st.session_state.use_spark = (computation_choice.lower() == 'spark')
+    selected_engine = computation_options[computation_choice]
+
+    if selected_engine != st.session_state.computation_engine:
+        st.session_state.computation_engine = selected_engine
+        st.session_state.use_spark = (selected_engine == 'spark')
+        # Save to database for persistence across refreshes
+        save_session_to_db()
         st.rerun()
 
+    # Enhanced status indicators
     if st.session_state.use_spark:
-        st.info("🚀 Spark mode: Large-scale distributed processing")
+        st.success("✅ Spark Mode: Large-scale distributed processing enabled")
+        st.caption("💡 Ideal for: Datasets > 10GB, Complex transformations")
     else:
-        st.info("🐼 Pandas mode: In-memory processing")
+        st.success("✅ Pandas Mode: Fast in-memory processing enabled")
+        st.caption("💡 Ideal for: Datasets < 10GB, Quick iterations")
 
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
@@ -267,6 +363,12 @@ with st.sidebar:
             <p style='color: #744ada; font-weight: 600; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>📊 SESSION STATUS</p>
         </div>
     """, unsafe_allow_html=True)
+
+    # Show session restoration status
+    if st.session_state.get('session_restored') and not st.session_state.get('restoration_shown'):
+        st.success(f"🔄 Session restored: {st.session_state.restored_page}")
+        st.caption(f"Kernel: {st.session_state.restored_engine.title()}")
+        st.session_state.restoration_shown = True
 
     # Show loaded data status
     if st.session_state.loaded_data is not None:

@@ -110,6 +110,171 @@ def show_rule_manager():
     st.markdown("### Rule Manager")
     st.markdown("Create, edit, and manage fraud detection rules")
 
+    # Load from Rules Directory section
+    with st.expander("📁 Load Rules from Directory", expanded=False):
+        st.markdown("#### Rules Directory Browser")
+
+        # Initialize rules directory in session state
+        if 'rules_directory' not in st.session_state:
+            st.session_state.rules_directory = "/root/@dfs-ai-app2/rules"
+
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            rules_dir = st.text_input(
+                "Rules Directory Path:",
+                value=st.session_state.rules_directory,
+                help="Path to directory containing rule JSON files",
+                key="rules_dir_input"
+            )
+        with col2:
+            st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+            if st.button("🔄 Refresh", key="refresh_rules_dir"):
+                st.session_state.rules_directory = rules_dir
+                st.rerun()
+
+        st.info(f"📁 Current directory: `{rules_dir}`")
+
+        # Scan for rule files
+        import os
+        import glob
+
+        if os.path.exists(rules_dir) and os.path.isdir(rules_dir):
+            rule_files = glob.glob(os.path.join(rules_dir, "*.json"))
+
+            if len(rule_files) > 0:
+                st.success(f"Found {len(rule_files)} rule file(s)")
+
+                # Display rule files
+                for rule_file in sorted(rule_files, reverse=True):
+                    rule_filename = os.path.basename(rule_file)
+
+                    with st.expander(f"📄 {rule_filename}", expanded=False):
+                        col1, col2, col3 = st.columns([2, 2, 1])
+
+                        with col1:
+                            st.markdown("**File Information:**")
+                            file_size = os.path.getsize(rule_file)
+                            st.text(f"Size: {file_size} bytes")
+
+                            mod_time = datetime.fromtimestamp(os.path.getmtime(rule_file))
+                            st.text(f"Modified: {mod_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+                        with col2:
+                            st.markdown("**Preview:**")
+                            try:
+                                with open(rule_file, 'r') as f:
+                                    rule_data = json.load(f)
+
+                                # Handle both single rule and array of rules
+                                if isinstance(rule_data, list):
+                                    st.caption(f"Contains {len(rule_data)} rule(s)")
+                                    if len(rule_data) > 0:
+                                        st.caption(f"First rule: {rule_data[0].get('name', 'Unnamed')}")
+                                else:
+                                    st.caption(f"Rule: {rule_data.get('name', 'Unnamed')}")
+                                    st.caption(f"Priority: {rule_data.get('priority', 'N/A')}")
+                            except Exception as e:
+                                st.caption(f"Error reading: {str(e)}")
+
+                        with col3:
+                            st.markdown("**Actions:**")
+                            if st.button("Load", key=f"load_rule_{rule_filename}"):
+                                try:
+                                    with open(rule_file, 'r') as f:
+                                        rule_data = json.load(f)
+
+                                    # Handle both single rule and array of rules
+                                    if isinstance(rule_data, list):
+                                        for rule in rule_data:
+                                            # Check if rule already exists
+                                            existing_ids = [r['id'] for r in st.session_state.rules]
+                                            if rule.get('id') not in existing_ids:
+                                                st.session_state.rules.append(rule)
+                                        st.success(f"Loaded {len(rule_data)} rule(s) from {rule_filename}")
+                                    else:
+                                        # Single rule
+                                        existing_ids = [r['id'] for r in st.session_state.rules]
+                                        if rule_data.get('id') not in existing_ids:
+                                            st.session_state.rules.append(rule_data)
+                                            st.success(f"Loaded rule from {rule_filename}")
+                                        else:
+                                            st.warning(f"Rule {rule_data.get('id')} already exists")
+
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error loading rule: {str(e)}")
+
+                            if st.button("View JSON", key=f"view_rule_{rule_filename}"):
+                                try:
+                                    with open(rule_file, 'r') as f:
+                                        rule_json = f.read()
+                                    st.code(rule_json, language='json')
+                                except Exception as e:
+                                    st.error(f"Error reading file: {str(e)}")
+
+                # Bulk load all rules
+                st.markdown("---")
+                if st.button("📥 Load All Rules from Directory", type="primary"):
+                    loaded_count = 0
+                    error_count = 0
+
+                    for rule_file in rule_files:
+                        try:
+                            with open(rule_file, 'r') as f:
+                                rule_data = json.load(f)
+
+                            if isinstance(rule_data, list):
+                                for rule in rule_data:
+                                    existing_ids = [r['id'] for r in st.session_state.rules]
+                                    if rule.get('id') not in existing_ids:
+                                        st.session_state.rules.append(rule)
+                                        loaded_count += 1
+                            else:
+                                existing_ids = [r['id'] for r in st.session_state.rules]
+                                if rule_data.get('id') not in existing_ids:
+                                    st.session_state.rules.append(rule_data)
+                                    loaded_count += 1
+                        except Exception as e:
+                            error_count += 1
+
+                    if loaded_count > 0:
+                        st.success(f"✅ Loaded {loaded_count} new rule(s) from directory")
+                    if error_count > 0:
+                        st.warning(f"⚠️ Failed to load {error_count} file(s)")
+                    st.rerun()
+            else:
+                st.info("No rule files (.json) found in directory")
+                st.markdown("**Tip:** Create rules using the editor below and export them to this directory")
+        else:
+            st.warning(f"Directory `{rules_dir}` does not exist")
+            st.markdown("**Tip:** Create the directory or specify an existing path")
+
+        # Export current rules to directory
+        st.markdown("---")
+        st.markdown("#### Export Rules to Directory")
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            export_filename = st.text_input(
+                "Export Filename:",
+                value=f"rules_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                key="export_filename"
+            )
+        with col2:
+            st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+            if st.button("💾 Export All Rules", key="export_rules"):
+                try:
+                    # Create directory if it doesn't exist
+                    os.makedirs(rules_dir, exist_ok=True)
+
+                    export_path = os.path.join(rules_dir, export_filename)
+                    with open(export_path, 'w') as f:
+                        json.dump(st.session_state.rules, f, indent=2)
+
+                    st.success(f"✅ Exported {len(st.session_state.rules)} rule(s) to {export_path}")
+                except Exception as e:
+                    st.error(f"Error exporting rules: {str(e)}")
+
     # Add new rule section
     with st.expander("➕ Create New Rule", expanded=False):
         col1, col2 = st.columns(2)
