@@ -1,0 +1,185 @@
+# ArgusAI Training Configuration
+# Global configuration for model training pipelines
+
+# Data Source Configuration
+data_source:
+  type: "clickhouse"  # clickhouse, csv, or synthetic
+
+  # ClickHouse settings
+  clickhouse:
+    database: "public"
+    table: "stixor_fraud_features_distributed"
+
+    # Data filters
+    filters:
+      date_range:
+        enabled: true
+        start_date: "2025-03-01"
+        end_date: "2025-06-30"
+
+      fraud_filter:
+        enabled: false
+        fraud_only: false
+
+      custom_where:
+        enabled: false
+        clause: ""
+
+    # Data limits
+    limit: 100000
+
+  # CSV settings
+  csv:
+    file_path: ""
+
+  # Synthetic data settings
+  synthetic:
+    n_samples: 10000
+    fraud_rate: 0.05
+    random_state: 42
+
+# Model Configuration
+model:
+  # Model type
+  type: "random_forest"  # random_forest, gradient_boosting, logistic_regression, xgboost, lightgbm, neural_network
+
+  # Feature selection
+  features:
+    auto_select: true
+    selected_features: []
+    exclude_features: ["transaction_id", "timestamp"]
+
+  # Training parameters
+  training:
+    test_size: 0.2
+    random_state: 42
+    stratify: true
+    cross_validation:
+      enabled: false
+      n_folds: 5
+
+  # Model-specific hyperparameters
+  hyperparameters:
+    random_forest:
+      n_estimators: 100
+      max_depth: 10
+      min_samples_split: 2
+      min_samples_leaf: 1
+      max_features: "sqrt"
+
+    gradient_boosting:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 3
+      subsample: 1.0
+
+    logistic_regression:
+      C: 1.0
+      max_iter: 1000
+      solver: "lbfgs"
+
+    xgboost:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 6
+      subsample: 0.8
+      colsample_bytree: 0.8
+
+    lightgbm:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: -1
+      num_leaves: 31
+
+# Training Scripts Configuration
+scripts:
+  directory: "training_scripts"
+
+  # Custom arguments per script
+  custom_scripts:
+    train_all.py:
+      description: "PySpark multi-model training pipeline"
+      required_args:
+        - "--data_path"
+        - "--model_type"
+        - "--test_size"
+        - "--random_state"
+      optional_args:
+        - "--epochs"
+        - "--save_model"
+        - "--output_dir"
+
+# Artifacts and Saving Configuration
+artifacts:
+  # Model saving
+  models:
+    save_dir: "artifacts/models"
+    versioning: true
+    version_format: "v{timestamp}"  # v{timestamp}, v{counter}, v{date}
+    save_format: "joblib"  # joblib, pickle, onnx
+
+  # Logs and metrics
+  logs:
+    save_dir: "artifacts/logs"
+    log_level: "INFO"
+    save_training_logs: true
+    save_metrics: true
+
+  # Metadata
+  metadata:
+    save_config: true
+    save_features: true
+    save_schema: true
+    save_performance: true
+
+# MLOps Configuration
+mlops:
+  # Model registry
+  registry:
+    enabled: false
+    backend: "mlflow"  # mlflow, wandb, custom
+    tracking_uri: ""
+
+  # Experiment tracking
+  experiment_tracking:
+    enabled: false
+    project_name: "argusai_fraud_detection"
+    experiment_name: ""
+
+  # Model monitoring
+  monitoring:
+    enabled: false
+    alert_thresholds:
+      accuracy_drop: 0.05
+      drift_score: 0.3
+
+# Notification Configuration
+notifications:
+  enabled: false
+
+  email:
+    enabled: false
+    recipients: []
+    smtp_server: ""
+
+  slack:
+    enabled: false
+    webhook_url: ""
+
+# Advanced Settings
+advanced:
+  # Performance
+  n_jobs: -1  # Number of parallel jobs (-1 = all cores)
+  memory_limit: "8GB"
+
+  # Preprocessing
+  preprocessing:
+    handle_missing: "drop"  # drop, mean, median, mode
+    scale_features: false
+    encode_categoricals: true
+
+  # Feature engineering
+  feature_engineering:
+    enabled: false
+    create_interactions: false
+    polynomial_features: false
