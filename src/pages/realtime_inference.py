@@ -461,9 +461,7 @@ def show_single_transaction_inference():
                         with col2:
                             # Display fraud score prominently
                             score_pct = fraud_score * 100 if fraud_score <= 1 else fraud_score
-                            st.metric("Fraud Score", f"{score_pct:.2f}%",
-                                     delta=f"Field: {fraud_score_field}" if fraud_score_field else None,
-                                     delta_color="off")
+                            st.metric("Fraud Score", f"{score_pct:.2f}%")
 
                         with col3:
                             st.metric("Latency", f"{result['latency_ms']:.0f}ms")
