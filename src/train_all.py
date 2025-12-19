@@ -41,6 +41,10 @@ from pyspark.ml.evaluation import BinaryClassificationEvaluator, MulticlassClass
 
 import logging
 
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.utils.mlflow_tracker import MLflowTracker, log_training_run
+
 
 class SimpleFraudPipeline:
     """Simplified fraud detection pipeline using Spark ML Pipeline."""
@@ -51,9 +55,11 @@ class SimpleFraudPipeline:
         self.logger = None
         self.pipeline_model = None
         self.feature_cols = []
-        
+        self.mlflow_tracker = None
+
         self._setup_directories()
         self._setup_logging()
+        self._setup_mlflow()
         
     def _setup_directories(self):
         """Create necessary directories."""
@@ -79,7 +85,31 @@ class SimpleFraudPipeline:
         self.logger.info("SIMPLIFIED FRAUD DETECTION PIPELINE")
         self.logger.info("=" * 80)
         self.logger.info(f"Log file: {log_path}")
-    
+
+    def _setup_mlflow(self):
+        """Initialize MLflow tracking."""
+        try:
+            # Try to get MLflow settings from global settings
+            from src.utils.settings import SettingsManager
+            settings_mgr = SettingsManager()
+            mlflow_settings = settings_mgr.get('mlflow', {})
+
+            tracking_uri = mlflow_settings.get('tracking_uri')
+            experiment_name = mlflow_settings.get('experiment_name', 'fraud_detection')
+
+            self.mlflow_tracker = MLflowTracker(
+                tracking_uri=tracking_uri,
+                experiment_name=experiment_name
+            )
+
+            if self.logger:
+                self.logger.info(f"MLflow tracking initialized: {experiment_name}")
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"MLflow initialization failed: {str(e)}")
+                self.logger.warning("Continuing without MLflow tracking")
+            self.mlflow_tracker = None
+
     def initialize_spark(self):
         """Initialize Spark with ClickHouse catalog."""
         self.logger.info("Initializing Spark session...")
@@ -466,10 +496,28 @@ class SimpleFraudPipeline:
         self.logger.info(f"💾 Plot saved to: {plot_path}")
     
     def save_pipeline(self, model_name: str):
-        """Save the trained pipeline."""
+        """Save the trained pipeline and metadata."""
         model_path = os.path.join(self.config['model_dir'], f'{model_name}_pipeline_model_fraud_scenario_v5')
         self.pipeline_model.write().overwrite().save(model_path)
         self.logger.info(f"💾 Pipeline saved to: {model_path}")
+
+        # Save model metadata
+        try:
+            metadata = {
+                'model_id': f'{model_name}_pipeline_model_fraud_scenario_v5',
+                'model_type': model_name,
+                'created_date': datetime.now().isoformat(),
+                'feature_count': len(self.feature_cols),
+                'features': self.feature_cols,
+                'config': self.config.get('models', {}).get(model_name, {})
+            }
+
+            metadata_path = os.path.join(model_path, 'model_metadata.json')
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            self.logger.info(f"💾 Model metadata saved to: {metadata_path}")
+        except Exception as e:
+            self.logger.warning(f"Failed to save model metadata: {str(e)}")
     
     def load_data_by_period(self, start_date: str, end_date: str, eval=False) -> DataFrame:
         """Load data for a specific date period."""
@@ -546,21 +594,65 @@ class SimpleFraudPipeline:
                 self.logger.info("\n" + "=" * 80)
                 self.logger.info(f"TRAINING {model_type.upper().replace('_', ' ')} MODEL")
                 self.logger.info("=" * 80)
-                
+
+                # Start MLflow run for this model
+                mlflow_run = None
+                if self.mlflow_tracker:
+                    try:
+                        run_name = f"{model_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                        mlflow_run = self.mlflow_tracker.start_run(run_name=run_name)
+                        self.logger.info(f"Started MLflow run: {run_name}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to start MLflow run: {str(e)}")
+
                 model_start = time.time()
-                
+
                 # Train pipeline
                 self.train_pipeline(train_df_balanced, model_type)
                 model_duration = time.time() - model_start
                 self.logger.info(f"✅ {model_type} completed in {model_duration:.2f}s")
+
+                # Log training parameters to MLflow
+                if self.mlflow_tracker and mlflow_run:
+                    try:
+                        params = {
+                            'model_type': model_type,
+                            'train_start_date': train_start,
+                            'train_end_date': train_end,
+                            'sample_rate': sample_rate,
+                            'random_seed': self.config['training']['random_seed'],
+                            'training_duration_s': model_duration
+                        }
+
+                        # Add model-specific parameters
+                        if model_type in self.config['models']:
+                            model_config = self.config['models'][model_type]
+                            for key, value in model_config.items():
+                                params[f'model_{key}'] = value
+
+                        self.mlflow_tracker.log_params(params)
+
+                        # Set tags
+                        self.mlflow_tracker.set_tags({
+                            'model_type': model_type,
+                            'framework': 'pyspark',
+                            'stage': 'training'
+                        })
+                    except Exception as e:
+                        self.logger.warning(f"Failed to log parameters to MLflow: {str(e)}")
 
                 # Save model if requested
                 if save_models:
                     self.save_pipeline(model_type)
 
                 # Feature importance (if supported)
+                feature_importance_path = None
                 try:
                     self.analyze_feature_importance(model_type)
+                    feature_importance_path = os.path.join(
+                        self.config['analysis_dir'],
+                        f'{model_type}_feature_importance.csv'
+                    )
                 except Exception as e:
                     self.logger.warning(f"Could not extract feature importance: {str(e)}")
 
@@ -571,11 +663,91 @@ class SimpleFraudPipeline:
             self.logger.info(f"Evaluation period: {eval_start} to {eval_end}")
             eval_df = self.load_data_by_period(eval_start, eval_end, eval=True)
 
+            # Reload MLflow runs for evaluation logging
+            mlflow_runs = {}
+            if self.mlflow_tracker:
+                # Get most recent run for each model type
+                try:
+                    runs_df = MLflowTracker.get_experiment_runs(
+                        self.mlflow_tracker.experiment_name
+                    )
+                    if runs_df is not None:
+                        for model_type in model_types:
+                            # Find most recent run for this model
+                            model_runs = runs_df[runs_df['tags.model_type'] == model_type]
+                            if not model_runs.empty:
+                                latest_run = model_runs.sort_values('start_time', ascending=False).iloc[0]
+                                mlflow_runs[model_type] = latest_run['run_id']
+                except Exception as e:
+                    self.logger.warning(f"Could not retrieve MLflow runs: {str(e)}")
+
             for model_type in model_types:
                 # Evaluate on test data
                 metrics = self.evaluate_pipeline(eval_df, model_type)
                 self.logger.info(f"Evaluation for {model_type} completed.")
                 all_results[model_type] = metrics
+
+                # Log evaluation metrics and artifacts to MLflow
+                if self.mlflow_tracker and model_type in mlflow_runs:
+                    try:
+                        # Reopen the run to log evaluation metrics
+                        import mlflow
+                        with mlflow.start_run(run_id=mlflow_runs[model_type]):
+                            # Log evaluation metrics
+                            self.mlflow_tracker.log_metrics({
+                                'eval_auc': metrics['auc'],
+                                'eval_accuracy': metrics['accuracy'],
+                                'eval_precision': metrics['precision'],
+                                'eval_recall': metrics['recall'],
+                                'eval_f1': metrics['f1']
+                            })
+
+                            # Log artifacts
+                            confusion_matrix_path = os.path.join(
+                                self.config['analysis_dir'],
+                                f'{model_type}_confusion_matrix.csv'
+                            )
+                            if os.path.exists(confusion_matrix_path):
+                                self.mlflow_tracker.log_artifact(confusion_matrix_path)
+
+                            confusion_matrix_plot = os.path.join(
+                                self.config['analysis_dir'],
+                                f'{model_type}_confusion_matrix.png'
+                            )
+                            if os.path.exists(confusion_matrix_plot):
+                                self.mlflow_tracker.log_artifact(confusion_matrix_plot)
+
+                            feature_importance_csv = os.path.join(
+                                self.config['analysis_dir'],
+                                f'{model_type}_feature_importance.csv'
+                            )
+                            if os.path.exists(feature_importance_csv):
+                                self.mlflow_tracker.log_artifact(feature_importance_csv)
+
+                            feature_importance_plot = os.path.join(
+                                self.config['analysis_dir'],
+                                f'{model_type}_feature_importance.png'
+                            )
+                            if os.path.exists(feature_importance_plot):
+                                self.mlflow_tracker.log_artifact(feature_importance_plot)
+
+                            # Save model metadata
+                            model_metadata = {
+                                'model_id': f'{model_type}_pipeline_model_fraud_scenario_v5',
+                                'model_type': model_type,
+                                'created_date': datetime.now().isoformat(),
+                                'training_period': f'{train_start} to {train_end}',
+                                'eval_period': f'{eval_start} to {eval_end}',
+                                'feature_count': len(self.feature_cols),
+                                'features': self.feature_cols,
+                                'metrics': metrics
+                            }
+                            self.mlflow_tracker.log_dict(model_metadata, 'model_metadata.json')
+
+                            self.logger.info(f"Logged evaluation metrics and artifacts to MLflow for {model_type}")
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed to log evaluation to MLflow: {str(e)}")
                 
                 
                 
