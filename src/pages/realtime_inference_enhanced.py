@@ -319,10 +319,15 @@ def show_single_transaction_enhanced():
                         fig = go.Figure(go.Indicator(
                             mode="gauge+number",
                             value=score_pct,
-                            title={'text': "Fraud Probability"},
+                            number={'suffix': "%", 'font': {'size': 40, 'color': color}},
+                            title={'text': "Fraud Probability", 'font': {'size': 16}},
+                            domain={'x': [0, 1], 'y': [0, 1]},
                             gauge={
-                                'axis': {'range': [0, 100]},
-                                'bar': {'color': color},
+                                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+                                'bar': {'color': color, 'thickness': 0.75},
+                                'bgcolor': "white",
+                                'borderwidth': 2,
+                                'bordercolor': "gray",
                                 'steps': [
                                     {'range': [0, 40], 'color': "lightgreen"},
                                     {'range': [40, 70], 'color': "lightyellow"},
@@ -336,7 +341,12 @@ def show_single_transaction_enhanced():
                             }
                         ))
 
-                        fig.update_layout(height=300)
+                        fig.update_layout(
+                            height=300,
+                            margin=dict(l=20, r=20, t=50, b=20),
+                            paper_bgcolor="white",
+                            font={'color': "darkgray", 'family': "Arial"}
+                        )
                         st.plotly_chart(fig, use_container_width=True)
 
                         st.markdown(f"<h3 style='text-align: center; color: {color};'>{risk_level}</h3>",
