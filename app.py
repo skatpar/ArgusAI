@@ -37,6 +37,13 @@ st.markdown("""
         --bg-grey: #f5f5f5;
     }
 
+    /* Global: Disable all transitions and animations to prevent trembling */
+    * {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
+    }
+
     /* Main Headers */
     .main-header {
         font-size: 2.2rem;
@@ -104,12 +111,13 @@ st.markdown("""
         border-radius: 6px;
         padding: 0.6rem 1.5rem;
         font-weight: 500;
-        transition: all 0.3s ease;
+        transition: none !important;
     }
 
     .stButton > button:hover {
         background-color: var(--dark-purple);
         box-shadow: 0 4px 8px rgba(116, 74, 218, 0.3);
+        transition: none !important;
     }
 
     /* Sidebar */
@@ -127,9 +135,29 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Dataframes */
+    /* Dataframes - Stabilize to prevent trembling */
     .dataframe {
         border: 1px solid var(--light-grey) !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+        backface-visibility: hidden;
+        will-change: auto !important;
+    }
+
+    /* Stabilize all Streamlit dataframe components */
+    [data-testid="stDataFrame"],
+    [data-testid="stTable"],
+    div[data-testid="column"] > div > div {
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    /* Prevent content shift */
+    .element-container {
+        transform: none !important;
+        transition: none !important;
     }
 
     /* Expander */

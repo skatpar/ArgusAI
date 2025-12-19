@@ -245,7 +245,7 @@ def show_api_configuration():
             ]
         })
 
-        st.dataframe(config_display, use_container_width=True, hide_index=True)
+        st.dataframe(config_display, use_container_width=True, hide_index=True, height=180)
 
     # Sample request/response format
     st.markdown("---")
