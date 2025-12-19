@@ -15,6 +15,7 @@ sys.path.append('/home/user/ArgusAI')
 
 from src.utils.api_client import call_api_inference, test_api_connection
 from src.utils.clickhouse_connector import ClickHouseConnector
+from src.pages.realtime_inference_enhanced import show_single_transaction_enhanced
 
 
 def show():
@@ -51,7 +52,7 @@ def show():
         show_api_configuration()
 
     with tabs[1]:
-        show_single_transaction_inference()
+        show_single_transaction_enhanced()
 
     with tabs[2]:
         show_batch_inference()
