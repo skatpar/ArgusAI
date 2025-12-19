@@ -397,6 +397,10 @@ def show_single_transaction_inference():
                 if not isinstance(api_data, dict):
                     api_data = {}
 
+                # Handle nested data structure (API may return {"data": {...}, "success": true})
+                if 'data' in api_data and isinstance(api_data['data'], dict):
+                    api_data = api_data['data']
+
                 # Check if API returned empty response
                 if not api_data and result['success']:
                     st.warning("⚠️ API returned empty response (200 OK but no data)")
@@ -412,16 +416,21 @@ def show_single_transaction_inference():
 
                 # Extract fraud score from different possible field names
                 fraud_score = None
-                for field in ['fraud_score', 'probability', 'score', 'fraud_probability', 'risk_score']:
+                fraud_score_field = None
+                for field in ['fraud_probability', 'fraud_score', 'probability', 'score', 'risk_score']:
                     if field in api_data:
                         try:
                             fraud_score = float(api_data[field])
+                            fraud_score_field = field
                             break
                         except (ValueError, TypeError):
                             continue
 
                 # Extract prediction (1 = fraud, 0 = legitimate)
                 prediction = api_data.get('prediction', api_data.get('label', api_data.get('class')))
+
+                # Extract risk level
+                risk_level = api_data.get('risk_level', api_data.get('risk'))
 
                 # Determine prediction from fraud score if not provided
                 if prediction is None and fraud_score is not None:
@@ -442,21 +451,45 @@ def show_single_transaction_inference():
 
                 # Display results
                 if result['success']:
-                    # Success metrics
-                    col1, col2, col3, col4 = st.columns(4)
+                    # Success metrics - show fraud score prominently
+                    if fraud_score is not None:
+                        col1, col2, col3, col4, col5 = st.columns(5)
 
-                    with col1:
-                        st.metric("Status", "✅ SUCCESS", delta="200 OK")
+                        with col1:
+                            st.metric("Status", "✅ SUCCESS", delta="200 OK")
 
-                    with col2:
-                        st.metric("Latency", f"{result['latency_ms']:.0f}ms")
+                        with col2:
+                            # Display fraud score prominently
+                            score_pct = fraud_score * 100 if fraud_score <= 1 else fraud_score
+                            st.metric("Fraud Score", f"{score_pct:.2f}%",
+                                     delta=f"Field: {fraud_score_field}" if fraud_score_field else None,
+                                     delta_color="off")
 
-                    with col3:
-                        st.metric("Transaction ID", transaction_id)
+                        with col3:
+                            st.metric("Latency", f"{result['latency_ms']:.0f}ms")
 
-                    with col4:
-                        timestamp = result['timestamp'].split()[1] if ' ' in result['timestamp'] else result['timestamp']
-                        st.metric("Time", timestamp)
+                        with col4:
+                            st.metric("Transaction ID", transaction_id)
+
+                        with col5:
+                            timestamp = result['timestamp'].split()[1] if ' ' in result['timestamp'] else result['timestamp']
+                            st.metric("Time", timestamp)
+                    else:
+                        # No fraud score - use 4 columns
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        with col1:
+                            st.metric("Status", "✅ SUCCESS", delta="200 OK")
+
+                        with col2:
+                            st.metric("Latency", f"{result['latency_ms']:.0f}ms")
+
+                        with col3:
+                            st.metric("Transaction ID", transaction_id)
+
+                        with col4:
+                            timestamp = result['timestamp'].split()[1] if ' ' in result['timestamp'] else result['timestamp']
+                            st.metric("Time", timestamp)
 
                     st.markdown("---")
 
@@ -468,21 +501,34 @@ def show_single_transaction_inference():
                             st.markdown("##### Fraud Score")
                             score_pct = fraud_score * 100 if fraud_score <= 1 else fraud_score
 
-                            # Color based on score
-                            if score_pct >= 70:
-                                color = "#dc3545"  # Red
-                                risk_level = "🔴 HIGH RISK"
-                            elif score_pct >= 40:
-                                color = "#ffc107"  # Yellow
-                                risk_level = "🟡 MEDIUM RISK"
+                            # Use API's risk_level if provided, otherwise calculate based on score
+                            if risk_level:
+                                risk_level_upper = risk_level.upper()
+                                if 'HIGH' in risk_level_upper:
+                                    color = "#dc3545"  # Red
+                                    risk_display = "🔴 HIGH RISK"
+                                elif 'MEDIUM' in risk_level_upper or 'MED' in risk_level_upper:
+                                    color = "#ffc107"  # Yellow
+                                    risk_display = "🟡 MEDIUM RISK"
+                                else:  # LOW or other
+                                    color = "#28a745"  # Green
+                                    risk_display = "🟢 LOW RISK"
                             else:
-                                color = "#28a745"  # Green
-                                risk_level = "🟢 LOW RISK"
+                                # Calculate risk based on score
+                                if score_pct >= 70:
+                                    color = "#dc3545"  # Red
+                                    risk_display = "🔴 HIGH RISK"
+                                elif score_pct >= 40:
+                                    color = "#ffc107"  # Yellow
+                                    risk_display = "🟡 MEDIUM RISK"
+                                else:
+                                    color = "#28a745"  # Green
+                                    risk_display = "🟢 LOW RISK"
 
                             st.markdown(f"""
                                 <div style='text-align: center; padding: 2rem; background-color: {color}22; border-radius: 10px; border: 2px solid {color};'>
                                     <h1 style='color: {color}; margin: 0; font-size: 3rem;'>{score_pct:.1f}%</h1>
-                                    <p style='margin: 0.5rem 0 0 0; font-size: 1.2rem; font-weight: 600;'>{risk_level}</p>
+                                    <p style='margin: 0.5rem 0 0 0; font-size: 1.2rem; font-weight: 600;'>{risk_display}</p>
                                 </div>
                             """, unsafe_allow_html=True)
 
@@ -499,6 +545,16 @@ def show_single_transaction_inference():
                                         <p style='margin: 0; font-size: 1.1rem; font-weight: 600; color: {pred_color};'>Prediction: {pred_label}</p>
                                     </div>
                                 """, unsafe_allow_html=True)
+
+                            # Show additional API response details
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            if api_data.get('model_used'):
+                                st.markdown(f"**Model:** `{api_data['model_used']}`")
+                            if api_data.get('risk_level'):
+                                st.markdown(f"**Risk Level:** {api_data['risk_level']}")
+                            if api_data.get('actual_fraud_flag') is not None:
+                                actual_flag = api_data['actual_fraud_flag']
+                                st.markdown(f"**Actual Label:** {'Fraud' if actual_flag == 1 else 'Legitimate'}")
 
                             st.markdown("<br>", unsafe_allow_html=True)
                             st.markdown("**Full API Response:**")
