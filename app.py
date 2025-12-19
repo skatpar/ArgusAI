@@ -244,7 +244,7 @@ if 'selected_page' not in st.session_state:
 
 # Module list for navigation
 MODULES = ["Data Loading", "Feature Monitoring", "Model Training", "Real-time Inference",
-           "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management"]
+           "Model Monitoring", "Model Deployment", "Rule Editor", "Case Management", "Settings"]
 
 # Helper function to save session state to database
 def save_session_to_db():
@@ -444,3 +444,7 @@ elif selected == "Real-time Inference":
 elif selected == "Model Deployment":
     from src.pages import model_deployment
     model_deployment.show()
+
+elif selected == "Settings":
+    from src.pages import settings_page
+    settings_page.show()
