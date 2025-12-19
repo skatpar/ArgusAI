@@ -7,9 +7,13 @@ import mlflow
 import mlflow.sklearn
 import mlflow.xgboost
 import mlflow.lightgbm
+import mlflow.spark
 import os
 from datetime import datetime
 import json
+import pandas as pd
+import numpy as np
+from mlflow.tracking import MlflowClient
 
 
 class MLflowTracker:
@@ -156,6 +160,244 @@ class MLflowTracker:
             return model
         except Exception as e:
             print(f"Error loading model: {e}")
+            return None
+
+    @staticmethod
+    def get_runs_by_experiment(tracking_uri, experiment_name):
+        """
+        Get all runs from a specific experiment at given tracking URI
+
+        Args:
+            tracking_uri: MLflow tracking server URI (e.g., 'http://localhost:5001')
+            experiment_name: Name of the experiment
+
+        Returns:
+            DataFrame with run information or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # Get experiment by name
+            experiment = client.get_experiment_by_name(experiment_name)
+            if not experiment:
+                print(f"Experiment '{experiment_name}' not found")
+                return None
+
+            # Search for runs in this experiment
+            runs = mlflow.search_runs(
+                experiment_ids=[experiment.experiment_id],
+                order_by=["start_time DESC"]
+            )
+
+            return runs
+        except Exception as e:
+            print(f"Error getting runs: {e}")
+            return None
+
+    @staticmethod
+    def download_artifact(tracking_uri, run_id, artifact_path, dest_path=None):
+        """
+        Download an artifact from a specific run
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID to download from
+            artifact_path: Path to the artifact within the run
+            dest_path: Destination path (if None, returns the downloaded path)
+
+        Returns:
+            Path to downloaded artifact or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # Download artifact
+            downloaded_path = client.download_artifacts(run_id, artifact_path, dst_path=dest_path)
+            return downloaded_path
+        except Exception as e:
+            print(f"Error downloading artifact: {e}")
+            return None
+
+    @staticmethod
+    def load_feature_importance_from_run(tracking_uri, run_id):
+        """
+        Load feature importance from MLflow run artifacts
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID to load from
+
+        Returns:
+            DataFrame with feature importance or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # List artifacts in the run
+            artifacts = client.list_artifacts(run_id)
+
+            # Look for feature importance CSV in different possible locations
+            possible_paths = [
+                'analysis',
+                'plots',
+                ''  # root level
+            ]
+
+            feature_importance_file = None
+            for path_prefix in possible_paths:
+                if path_prefix:
+                    artifacts_in_path = client.list_artifacts(run_id, path=path_prefix)
+                else:
+                    artifacts_in_path = artifacts
+
+                for artifact in artifacts_in_path:
+                    if 'feature_importance' in artifact.path and artifact.path.endswith('.csv'):
+                        feature_importance_file = artifact.path
+                        break
+
+                if feature_importance_file:
+                    break
+
+            if not feature_importance_file:
+                print(f"Feature importance file not found in run {run_id}")
+                return None
+
+            # Download and read the CSV
+            local_path = client.download_artifacts(run_id, feature_importance_file)
+            df = pd.read_csv(local_path)
+
+            return df
+
+        except Exception as e:
+            print(f"Error loading feature importance: {e}")
+            return None
+
+    @staticmethod
+    def load_shap_values_from_run(tracking_uri, run_id):
+        """
+        Load SHAP values from MLflow run artifacts
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID to load from
+
+        Returns:
+            numpy array with SHAP values or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # List artifacts in the run
+            artifacts = client.list_artifacts(run_id)
+
+            # Look for SHAP files (.npy or .csv)
+            possible_paths = ['analysis', 'plots', '']
+
+            shap_file = None
+            for path_prefix in possible_paths:
+                if path_prefix:
+                    artifacts_in_path = client.list_artifacts(run_id, path=path_prefix)
+                else:
+                    artifacts_in_path = artifacts
+
+                for artifact in artifacts_in_path:
+                    if 'shap' in artifact.path.lower() and (artifact.path.endswith('.npy') or artifact.path.endswith('.csv')):
+                        shap_file = artifact.path
+                        break
+
+                if shap_file:
+                    break
+
+            if not shap_file:
+                print(f"SHAP values file not found in run {run_id}")
+                return None
+
+            # Download the file
+            local_path = client.download_artifacts(run_id, shap_file)
+
+            # Load based on file type
+            if local_path.endswith('.npy'):
+                shap_values = np.load(local_path)
+            elif local_path.endswith('.csv'):
+                shap_values = pd.read_csv(local_path).values
+            else:
+                print(f"Unknown SHAP file format: {local_path}")
+                return None
+
+            return shap_values
+
+        except Exception as e:
+            print(f"Error loading SHAP values: {e}")
+            return None
+
+    @staticmethod
+    def get_run_metadata(tracking_uri, run_id):
+        """
+        Get metadata for a specific run
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID
+
+        Returns:
+            Dictionary with run metadata
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            run = client.get_run(run_id)
+
+            metadata = {
+                'run_id': run_id,
+                'run_name': run.data.tags.get('mlflow.runName', 'Unknown'),
+                'status': run.info.status,
+                'start_time': datetime.fromtimestamp(run.info.start_time / 1000.0),
+                'end_time': datetime.fromtimestamp(run.info.end_time / 1000.0) if run.info.end_time else None,
+                'params': dict(run.data.params),
+                'metrics': dict(run.data.metrics),
+                'tags': dict(run.data.tags),
+                'artifact_uri': run.info.artifact_uri
+            }
+
+            return metadata
+
+        except Exception as e:
+            print(f"Error getting run metadata: {e}")
+            return None
+
+    @staticmethod
+    def load_spark_model(tracking_uri, run_id, model_path="spark_model"):
+        """
+        Load a Spark ML model from MLflow run
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID
+            model_path: Path to model within run artifacts
+
+        Returns:
+            Spark PipelineModel or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # Download the spark model artifact
+            local_model_path = client.download_artifacts(run_id, model_path)
+
+            # Load using PySpark
+            from pyspark.ml import PipelineModel
+            model = PipelineModel.load(local_model_path)
+
+            return model
+
+        except Exception as e:
+            print(f"Error loading Spark model: {e}")
             return None
 
 

@@ -12,6 +12,8 @@ sys.path.append('/home/user/ArgusAI')
 
 from src.utils.api_client import call_api_inference
 from src.utils.model_artifacts import ModelArtifactsLoader
+from src.utils.mlflow_tracker import MLflowTracker
+from src.utils.settings import SettingsManager
 
 
 def show_single_transaction_enhanced():
@@ -19,48 +21,163 @@ def show_single_transaction_enhanced():
     st.markdown("### Single Transaction Inference")
     st.markdown("Score individual transactions with model selection and explainability")
 
-    # Initialize model artifacts loader
-    artifacts_loader = ModelArtifactsLoader()
-
     # Model Selection Section
     st.markdown("---")
     st.markdown("#### Model Selection")
 
-    col1, col2 = st.columns([2, 1])
+    # Model source selection
+    model_source = st.radio(
+        "Model Source:",
+        options=["Local Files", "MLflow Runs"],
+        horizontal=True,
+        help="Choose to load models from local files or MLflow experiment runs"
+    )
 
-    with col1:
-        # Get available models
-        available_models = artifacts_loader.list_available_models()
+    feature_importance = None
+    shap_values = None
+    selected_model_id = None
+    selected_run_id = None
+    selected_model_name = None
+    model_metadata = {}
 
-        if not available_models:
-            st.warning("No trained models found in models directory")
-            st.info("Train models using the Model Training page first")
+    if model_source == "Local Files":
+        # Initialize model artifacts loader
+        artifacts_loader = ModelArtifactsLoader()
+
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            # Get available models
+            available_models = artifacts_loader.list_available_models()
+
+            if not available_models:
+                st.warning("No trained models found in models directory")
+                st.info("Train models using the Model Training page first")
+                return
+
+            model_options = {m['model_name']: m['model_id'] for m in available_models}
+
+            selected_model_name = st.selectbox(
+                "Select Model:",
+                options=list(model_options.keys()),
+                help="Choose the model to use for inference",
+                key="local_model_select"
+            )
+
+            selected_model_id = model_options[selected_model_name]
+
+        with col2:
+            # Model metadata
+            model_metadata = artifacts_loader.get_model_metadata(selected_model_id)
+            if model_metadata:
+                st.metric("Model Type", model_metadata.get('model_type', 'Unknown'))
+                if model_metadata.get('created_date'):
+                    st.caption(f"Created: {model_metadata['created_date']}")
+
+        # Load feature importance for selected model
+        feature_importance = artifacts_loader.load_feature_importance(selected_model_id)
+
+    else:  # MLflow Runs
+        # Get MLflow settings
+        try:
+            settings_mgr = SettingsManager()
+            mlflow_settings = settings_mgr.get('mlflow', {})
+
+            tracking_uri = mlflow_settings.get('tracking_uri', 'http://localhost:5001')
+            experiment_name = mlflow_settings.get('experiment_name', 'fraud_detection_pipeline')
+
+            st.info(f"🔗 MLflow Tracking URI: `{tracking_uri}` | Experiment: `{experiment_name}`")
+
+            # Fetch runs from MLflow
+            with st.spinner("Fetching runs from MLflow..."):
+                runs_df = MLflowTracker.get_runs_by_experiment(tracking_uri, experiment_name)
+
+            if runs_df is None or runs_df.empty:
+                st.warning(f"No runs found in MLflow experiment '{experiment_name}'")
+                st.info("Train models using the training script with MLflow integration")
+                return
+
+            # Filter for finished runs
+            runs_df = runs_df[runs_df['status'] == 'FINISHED']
+
+            if runs_df.empty:
+                st.warning("No finished runs found")
+                return
+
+            col1, col2 = st.columns([2, 1])
+
+            with col1:
+                # Create run options (run_name + timestamp)
+                run_options = {}
+                for idx, row in runs_df.iterrows():
+                    run_name = row.get('tags.mlflow.runName', 'Unknown')
+                    run_id = row['run_id']
+                    model_type = row.get('params.model_type', 'Unknown')
+                    start_time = pd.to_datetime(row['start_time']).strftime('%Y-%m-%d %H:%M')
+
+                    display_name = f"{run_name} ({model_type}) - {start_time}"
+                    run_options[display_name] = {
+                        'run_id': run_id,
+                        'run_name': run_name,
+                        'model_type': model_type,
+                        'metrics': {
+                            'auc': row.get('metrics.auc_roc', 0),
+                            'f1': row.get('metrics.f1_score', 0),
+                            'precision': row.get('metrics.precision', 0)
+                        }
+                    }
+
+                selected_run_display = st.selectbox(
+                    "Select MLflow Run:",
+                    options=list(run_options.keys()),
+                    help="Choose an MLflow run to use for inference",
+                    key="mlflow_run_select"
+                )
+
+                selected_run_info = run_options[selected_run_display]
+                selected_run_id = selected_run_info['run_id']
+                selected_model_name = selected_run_info['run_name']
+
+            with col2:
+                # Display run metrics
+                metrics = selected_run_info['metrics']
+                st.metric("Model Type", selected_run_info['model_type'])
+                st.metric("AUC", f"{metrics['auc']:.4f}")
+                st.metric("F1 Score", f"{metrics['f1']:.4f}")
+
+            # Load feature importance from MLflow
+            with st.spinner("Loading artifacts from MLflow..."):
+                feature_importance = MLflowTracker.load_feature_importance_from_run(
+                    tracking_uri, selected_run_id
+                )
+
+                # Try to load SHAP values if available
+                try:
+                    shap_values = MLflowTracker.load_shap_values_from_run(
+                        tracking_uri, selected_run_id
+                    )
+                    if shap_values is not None:
+                        st.success("✓ SHAP values loaded")
+                except Exception as e:
+                    st.info("SHAP values not available for this run")
+
+        except Exception as e:
+            st.error(f"Error connecting to MLflow: {str(e)}")
+            st.info("Please check your MLflow settings in the Settings page")
             return
 
-        model_options = {m['model_name']: m['model_id'] for m in available_models}
-
-        selected_model_name = st.selectbox(
-            "Select Model:",
-            options=list(model_options.keys()),
-            help="Choose the model to use for inference"
-        )
-
-        selected_model_id = model_options[selected_model_name]
-
-    with col2:
-        # Model metadata
-        model_metadata = artifacts_loader.get_model_metadata(selected_model_id)
-        if model_metadata:
-            st.metric("Model Type", model_metadata['model_type'])
-            if model_metadata.get('created_date'):
-                st.caption(f"Created: {model_metadata['created_date']}")
-
-    # Load feature importance for selected model
-    feature_importance = artifacts_loader.load_feature_importance(selected_model_id)
+    # Display model/run information
+    if model_source == "MLflow Runs" and selected_run_id:
+        st.caption(f"🔗 Run ID: `{selected_run_id[:8]}...` | Model: {selected_model_name}")
+    elif model_source == "Local Files" and selected_model_id:
+        st.caption(f"📁 Model ID: `{selected_model_id}`")
 
     if feature_importance is not None and not feature_importance.empty:
         with st.expander("View Feature Importance for Selected Model", expanded=False):
             st.markdown(f"**Top 20 Important Features for {selected_model_name}**")
+
+            if model_source == "MLflow Runs":
+                st.info("✓ Feature importance loaded from MLflow artifacts")
 
             # Create horizontal bar chart
             top_features = feature_importance.head(20).sort_values('importance', ascending=True)
@@ -290,10 +407,59 @@ def show_single_transaction_enhanced():
                             hide_index=True
                         )
 
+                        # SHAP Values Section (if available from MLflow)
+                        if shap_values is not None and model_source == "MLflow Runs":
+                            st.markdown("---")
+                            st.markdown("##### SHAP Values (Explainability)")
+
+                            st.success("✓ SHAP values loaded from MLflow")
+
+                            # Display SHAP values information
+                            st.markdown(f"""
+                            **SHAP values loaded:** {shap_values.shape}
+
+                            SHAP (SHapley Additive exPlanations) values show the actual contribution of each feature
+                            to individual predictions, providing instance-level explainability.
+                            """)
+
+                            # If SHAP values have the right shape, display summary
+                            if len(shap_values.shape) >= 2:
+                                st.metric("Number of Samples", shap_values.shape[0])
+                                st.metric("Number of Features", shap_values.shape[1])
+
+                                # Show mean absolute SHAP values as feature importance
+                                with st.expander("Mean SHAP Feature Importance"):
+                                    mean_shap = np.abs(shap_values).mean(axis=0)
+
+                                    if feature_importance is not None and len(mean_shap) == len(feature_importance):
+                                        shap_df = pd.DataFrame({
+                                            'feature': feature_importance['feature'],
+                                            'mean_shap_value': mean_shap
+                                        }).sort_values('mean_shap_value', ascending=False)
+
+                                        fig_shap = go.Figure(go.Bar(
+                                            x=shap_df.head(15)['mean_shap_value'],
+                                            y=shap_df.head(15)['feature'],
+                                            orientation='h',
+                                            marker=dict(color='lightblue')
+                                        ))
+
+                                        fig_shap.update_layout(
+                                            title="Top 15 Features by Mean |SHAP| Value",
+                                            xaxis_title="Mean Absolute SHAP Value",
+                                            yaxis_title="Feature",
+                                            height=400
+                                        )
+
+                                        st.plotly_chart(fig_shap, use_container_width=True)
+                                        st.dataframe(shap_df.head(15), use_container_width=True, hide_index=True)
+                            else:
+                                st.info("SHAP values have unusual shape - manual inspection may be needed")
+
                         st.info("""
                         **Note:** Feature importance shows which features are generally most important for the model's decisions.
-                        For transaction-specific explanations, SHAP values would show the actual contribution of each feature value
-                        to this specific prediction.
+                        For transaction-specific explanations, SHAP values show the actual contribution of each feature value
+                        to specific predictions.
                         """)
                     else:
                         st.warning("Feature importance not available for selected model")
