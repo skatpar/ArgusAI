@@ -37,10 +37,16 @@ st.markdown("""
         --bg-grey: #f5f5f5;
     }
 
-    /* Global: Disable all transitions and animations to prevent trembling */
+    /* Disable transitions and animations to prevent trembling, but preserve transforms for dropdowns */
     * {
         transition: none !important;
         animation: none !important;
+    }
+
+    /* Specifically disable transforms only on tables and dataframes to prevent trembling */
+    .dataframe, .dataframe *,
+    [data-testid="stDataFrame"], [data-testid="stDataFrame"] *,
+    [data-testid="stTable"], [data-testid="stTable"] * {
         transform: none !important;
     }
 
@@ -135,29 +141,11 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Dataframes - Stabilize to prevent trembling */
+    /* Dataframes - Additional stabilization */
     .dataframe {
         border: 1px solid var(--light-grey) !important;
-        transform: none !important;
-        transition: none !important;
-        animation: none !important;
         backface-visibility: hidden;
         will-change: auto !important;
-    }
-
-    /* Stabilize all Streamlit dataframe components */
-    [data-testid="stDataFrame"],
-    [data-testid="stTable"],
-    div[data-testid="column"] > div > div {
-        transform: none !important;
-        transition: none !important;
-        animation: none !important;
-    }
-
-    /* Prevent content shift */
-    .element-container {
-        transform: none !important;
-        transition: none !important;
     }
 
     /* Expander */
