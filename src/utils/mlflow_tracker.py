@@ -400,6 +400,227 @@ class MLflowTracker:
             print(f"Error loading Spark model: {e}")
             return None
 
+    @staticmethod
+    def load_model_from_run(tracking_uri, run_id, model_path="model"):
+        """
+        Load a model from a specific MLflow run
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID to load model from
+            model_path: Path to model within run artifacts
+
+        Returns:
+            Loaded model or None
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            model_uri = f"runs:/{run_id}/{model_path}"
+
+            # Try to load as sklearn first, then pyfunc as fallback
+            try:
+                model = mlflow.sklearn.load_model(model_uri)
+            except:
+                model = mlflow.pyfunc.load_model(model_uri)
+
+            return model
+        except Exception as e:
+            print(f"Error loading model from run: {e}")
+            return None
+
+    @staticmethod
+    def extract_tree_rules(model, feature_names=None, max_depth=3):
+        """
+        Extract decision rules from tree-based models
+
+        Args:
+            model: Trained tree-based model (DecisionTree, RandomForest, GradientBoosting)
+            feature_names: List of feature names
+            max_depth: Maximum depth of rules to extract
+
+        Returns:
+            List of rule dictionaries or None
+        """
+        try:
+            from sklearn.tree import _tree
+
+            rules = []
+
+            # Handle different model types
+            if hasattr(model, 'estimators_'):  # RandomForest, GradientBoosting
+                # Extract from first few trees
+                trees = model.estimators_[:3] if hasattr(model.estimators_[0], '__len__') else [model.estimators_[0]]
+                tree_models = [t[0] if hasattr(t, '__len__') else t for t in trees]
+            elif hasattr(model, 'tree_'):  # DecisionTree
+                tree_models = [model]
+            else:
+                return None
+
+            for idx, tree_model in enumerate(tree_models):
+                tree = tree_model.tree_
+                feature_name = [
+                    feature_names[i] if feature_names and i != _tree.TREE_UNDEFINED else f"feature_{i}"
+                    for i in range(len(feature_names) if feature_names else tree.n_features)
+                ]
+
+                def recurse(node, depth, path):
+                    if depth > max_depth:
+                        return
+
+                    if tree.feature[node] != _tree.TREE_UNDEFINED:
+                        name = feature_name[tree.feature[node]]
+                        threshold = tree.threshold[node]
+
+                        # Left child (<=)
+                        left_path = path + [f"{name} <= {threshold:.3f}"]
+                        recurse(tree.children_left[node], depth + 1, left_path)
+
+                        # Right child (>)
+                        right_path = path + [f"{name} > {threshold:.3f}"]
+                        recurse(tree.children_right[node], depth + 1, right_path)
+                    else:
+                        # Leaf node
+                        value = tree.value[node]
+                        if len(value[0]) > 1:
+                            fraud_prob = value[0][1] / value[0].sum()
+                        else:
+                            fraud_prob = value[0][0]
+
+                        rules.append({
+                            'tree_id': idx,
+                            'rule': ' AND '.join(path),
+                            'fraud_probability': float(fraud_prob),
+                            'samples': int(tree.n_node_samples[node])
+                        })
+
+                recurse(0, 0, [])
+
+            # Sort by fraud probability
+            rules.sort(key=lambda x: x['fraud_probability'], reverse=True)
+            return rules[:20]  # Return top 20 rules
+
+        except Exception as e:
+            print(f"Error extracting tree rules: {e}")
+            return None
+
+    @staticmethod
+    def get_model_params(tracking_uri, run_id):
+        """
+        Get model parameters/hyperparameters from a run
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID
+
+        Returns:
+            Dictionary of parameters
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            run = client.get_run(run_id)
+            params = dict(run.data.params)
+
+            return params
+        except Exception as e:
+            print(f"Error getting model parameters: {e}")
+            return {}
+
+    @staticmethod
+    def predict_with_model(model, X, return_proba=True):
+        """
+        Make predictions with a loaded model
+
+        Args:
+            model: Loaded model
+            X: Features (DataFrame or array)
+            return_proba: Whether to return probabilities
+
+        Returns:
+            Predictions (probabilities if return_proba=True, else classes)
+        """
+        try:
+            if return_proba and hasattr(model, 'predict_proba'):
+                predictions = model.predict_proba(X)
+                # Return probability of fraud class (usually class 1)
+                if len(predictions.shape) > 1 and predictions.shape[1] > 1:
+                    return predictions[:, 1]
+                return predictions
+            else:
+                return model.predict(X)
+        except Exception as e:
+            print(f"Error making predictions: {e}")
+            return None
+
+    @staticmethod
+    def compute_shap_for_instance(model, X_instance, X_background=None, feature_names=None):
+        """
+        Compute SHAP values for a specific instance
+
+        Args:
+            model: Loaded model
+            X_instance: Single instance to explain (1D array or DataFrame row)
+            X_background: Background dataset for SHAP (optional, uses X_instance if None)
+            feature_names: List of feature names
+
+        Returns:
+            Dictionary with SHAP values and explanation
+        """
+        try:
+            import shap
+
+            # Ensure X_instance is 2D
+            if len(X_instance.shape) == 1:
+                X_instance = X_instance.reshape(1, -1)
+
+            # Create explainer
+            if X_background is not None:
+                explainer = shap.TreeExplainer(model, X_background)
+            else:
+                explainer = shap.TreeExplainer(model)
+
+            # Compute SHAP values
+            shap_values = explainer.shap_values(X_instance)
+
+            # Handle different SHAP output formats
+            if isinstance(shap_values, list):
+                # Binary classification - use positive class
+                shap_values = shap_values[1]
+
+            # Flatten if needed
+            if len(shap_values.shape) > 1:
+                shap_values = shap_values[0]
+
+            # Create feature contributions DataFrame
+            if feature_names is not None:
+                contributions = pd.DataFrame({
+                    'feature': feature_names,
+                    'value': X_instance[0] if len(X_instance.shape) > 1 else X_instance,
+                    'shap_value': shap_values,
+                    'abs_shap': np.abs(shap_values)
+                }).sort_values('abs_shap', ascending=False)
+            else:
+                contributions = pd.DataFrame({
+                    'feature': [f'feature_{i}' for i in range(len(shap_values))],
+                    'value': X_instance[0] if len(X_instance.shape) > 1 else X_instance,
+                    'shap_value': shap_values,
+                    'abs_shap': np.abs(shap_values)
+                }).sort_values('abs_shap', ascending=False)
+
+            return {
+                'shap_values': shap_values,
+                'contributions': contributions,
+                'base_value': explainer.expected_value if hasattr(explainer, 'expected_value') else 0
+            }
+
+        except ImportError:
+            print("SHAP library not installed. Install with: pip install shap")
+            return None
+        except Exception as e:
+            print(f"Error computing SHAP values: {e}")
+            return None
+
 
 def log_training_run(model, model_type, params, metrics, artifacts=None, tags=None):
     """
