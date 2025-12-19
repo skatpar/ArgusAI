@@ -567,15 +567,15 @@ def show_custom_script_training():
         )
 
     with col2:
-        eval_start_date = st.date_input(
-            "Evaluation Start Date:",
+        test_start_date = st.date_input(
+            "Test Start Date:",
             value=pd.to_datetime("2025-07-01"),
-            help="Start date for evaluation data (YYYY-MM-DD)"
+            help="Start date for test data (YYYY-MM-DD)"
         )
-        eval_end_date = st.date_input(
-            "Evaluation End Date:",
+        test_end_date = st.date_input(
+            "Test End Date:",
             value=pd.to_datetime("2025-07-31"),
-            help="End date for evaluation data (YYYY-MM-DD)"
+            help="End date for test data (YYYY-MM-DD)"
         )
 
     st.markdown("---")
@@ -592,20 +592,12 @@ def show_custom_script_training():
 
     with col2:
         st.markdown("**Data Sampling:**")
-        test_size = st.slider(
-            "Test Size:",
-            0.1, 0.5,
-            model_config.get('training', {}).get('test_size', 0.2),
-            0.05,
-            key="script_test_size",
-            help="Proportion of data to use for testing"
-        )
-
         sample_rate = st.slider(
             "Non-Fraud Sample Rate:",
             0.01, 1.0,
             0.1,
             0.01,
+            key="script_sample_rate",
             help="Downsampling rate for non-fraud data (0.1 = keep 10%)"
         )
 
@@ -765,13 +757,12 @@ def show_custom_script_training():
     command_parts.extend([
         "--train_start_date", train_start_date.strftime('%Y-%m-%d'),
         "--train_end_date", train_end_date.strftime('%Y-%m-%d'),
-        "--eval_start_date", eval_start_date.strftime('%Y-%m-%d'),
-        "--eval_end_date", eval_end_date.strftime('%Y-%m-%d'),
+        "--test_start_date", test_start_date.strftime('%Y-%m-%d'),
+        "--test_end_date", test_end_date.strftime('%Y-%m-%d'),
     ])
 
     # Add training parameters
     command_parts.extend([
-        "--test_size", str(test_size),
         "--random_state", str(random_state),
         "--sample_rate", str(sample_rate),
         "--epochs", str(epochs),

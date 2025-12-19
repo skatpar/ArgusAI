@@ -1434,9 +1434,9 @@ def show_inference_history():
 
     st.markdown("---")
 
-    # Display history table
+    # Display history table with fixed height to prevent trembling
     history_df = pd.DataFrame(st.session_state.inference_history)
-    st.dataframe(history_df.iloc[::-1], use_container_width=True, hide_index=True)
+    st.dataframe(history_df.iloc[::-1], use_container_width=True, hide_index=True, height=400)
 
     # Download button
     csv = history_df.to_csv(index=False)
