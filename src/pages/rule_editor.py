@@ -357,22 +357,18 @@ def show_rule_manager():
     st.markdown("### Existing Rules")
 
     # Filter options
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         filter_status = st.multiselect("Filter by Status:", ["Active", "Inactive", "Testing"],
                                        default=["Active", "Testing"])
     with col2:
         filter_priority = st.multiselect("Filter by Priority:", ["Low", "Medium", "High", "Critical"],
                                         default=["Low", "Medium", "High", "Critical"])
-    with col3:
-        search_term = st.text_input("Search rules:")
 
     # Filter rules
     filtered_rules = [r for r in st.session_state.rules
                      if r['status'] in filter_status
-                     and r['priority'] in filter_priority
-                     and (not search_term or search_term.lower() in r['name'].lower()
-                          or search_term.lower() in r['description'].lower())]
+                     and r['priority'] in filter_priority]
 
     # Display rules as cards
     for i, rule in enumerate(filtered_rules):

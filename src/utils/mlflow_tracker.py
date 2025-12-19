@@ -19,7 +19,7 @@ from mlflow.tracking import MlflowClient
 class MLflowTracker:
     """MLflow experiment tracker for fraud detection models"""
 
-    def __init__(self, tracking_uri=None, experiment_name="fraud_detection"):
+    def __init__(self, tracking_uri=None, experiment_name="fraud_detection_pipeline"):
         """
         Initialize MLflow tracker
 
@@ -139,7 +139,7 @@ class MLflowTracker:
         return dict(items)
 
     @staticmethod
-    def get_experiment_runs(experiment_name="fraud_detection"):
+    def get_experiment_runs(experiment_name="fraud_detection_pipeline"):
         """Get all runs for an experiment"""
         try:
             experiment = mlflow.get_experiment_by_name(experiment_name)

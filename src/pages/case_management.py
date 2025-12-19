@@ -149,16 +149,6 @@ def show_case_dashboard():
         (cases_df['case_type'].isin(filter_type))
     ]
 
-    # Search
-    search_term = st.text_input("Search cases (Case ID, Transaction ID, Customer ID):")
-
-    if search_term:
-        filtered_cases = filtered_cases[
-            filtered_cases['case_id'].str.contains(search_term, case=False) |
-            filtered_cases['transaction_id'].str.contains(search_term, case=False) |
-            filtered_cases['customer_id'].str.contains(search_term, case=False)
-        ]
-
     st.markdown(f"**Showing {len(filtered_cases)} cases**")
 
     # Sort options

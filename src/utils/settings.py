@@ -75,7 +75,7 @@ class SettingsManager:
             },
             "mlflow": {
                 "tracking_uri": "http://localhost:5000",
-                "experiment_name": "fraud_detection",
+                "experiment_name": "fraud_detection_pipeline",
                 "artifact_location": ""
             },
             "spark": {

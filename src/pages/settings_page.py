@@ -190,7 +190,7 @@ def show():
         )
         mlflow_experiment = st.text_input(
             "Experiment Name",
-            value=mlflow_settings.get('experiment_name', 'fraud_detection'),
+            value=mlflow_settings.get('experiment_name', 'fraud_detection_pipeline'),
             key="mlflow_experiment"
         )
         mlflow_artifact_location = st.text_input(

@@ -347,7 +347,9 @@ def show_single_transaction_enhanced():
                             paper_bgcolor="white",
                             font={'color': "darkgray", 'family': "Arial"}
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        # Use unique key based on model and transaction to force re-render
+                        chart_key = f"gauge_{selected_model_name}_{transaction_id}"
+                        st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
                         st.markdown(f"<h3 style='text-align: center; color: {color};'>{risk_level}</h3>",
                                    unsafe_allow_html=True)

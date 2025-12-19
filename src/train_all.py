@@ -95,7 +95,7 @@ class SimpleFraudPipeline:
             mlflow_settings = settings_mgr.get('mlflow', {})
 
             tracking_uri = mlflow_settings.get('tracking_uri')
-            experiment_name = mlflow_settings.get('experiment_name', 'fraud_detection')
+            experiment_name = mlflow_settings.get('experiment_name', 'fraud_detection_pipeline')
 
             self.mlflow_tracker = MLflowTracker(
                 tracking_uri=tracking_uri,
