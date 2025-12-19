@@ -18,7 +18,7 @@ class ModelArtifactsLoader:
     def __init__(self, models_dir: str = None):
         if models_dir is None:
             # Try to get from settings
-            from utils.settings import SettingsManager
+            from src.utils.settings import SettingsManager
             settings_mgr = SettingsManager()
             models_dir = settings_mgr.get('paths.models_dir', '/root/research-dir/dev/jazzcash-fraud-detection/models')
 
@@ -77,7 +77,7 @@ class ModelArtifactsLoader:
             DataFrame with feature names and importance scores
         """
         if analysis_dir is None:
-            from utils.settings import SettingsManager
+            from src.utils.settings import SettingsManager
             settings_mgr = SettingsManager()
             analysis_dir = settings_mgr.get('paths.analysis_dir', '/root/research-dir/dev/jazzcash-fraud-detection/analysis')
 
@@ -116,7 +116,7 @@ class ModelArtifactsLoader:
             Dictionary with SHAP values and feature names
         """
         if analysis_dir is None:
-            from utils.settings import SettingsManager
+            from src.utils.settings import SettingsManager
             settings_mgr = SettingsManager()
             analysis_dir = settings_mgr.get('paths.analysis_dir', '/root/research-dir/dev/jazzcash-fraud-detection/analysis')
 
