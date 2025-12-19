@@ -390,14 +390,51 @@ def show_single_transaction_inference():
                 if len(st.session_state.api_request_log) > 100:
                     st.session_state.api_request_log = st.session_state.api_request_log[-100:]
 
+                # Parse API response data
+                api_data = result.get('data', {})
+
+                # Handle non-dict responses
+                if not isinstance(api_data, dict):
+                    api_data = {}
+
+                # Check if API returned empty response
+                if not api_data and result['success']:
+                    st.warning("⚠️ API returned empty response (200 OK but no data)")
+                    st.markdown("""
+                    **Possible causes:**
+                    - Transaction ID not found in database
+                    - API processing error without proper error response
+                    - API endpoint configuration issue
+
+                    Please check the API logs for more details.
+                    """)
+                    return
+
+                # Extract fraud score from different possible field names
+                fraud_score = None
+                for field in ['fraud_score', 'probability', 'score', 'fraud_probability', 'risk_score']:
+                    if field in api_data:
+                        try:
+                            fraud_score = float(api_data[field])
+                            break
+                        except (ValueError, TypeError):
+                            continue
+
+                # Extract prediction (1 = fraud, 0 = legitimate)
+                prediction = api_data.get('prediction', api_data.get('label', api_data.get('class')))
+
+                # Determine prediction from fraud score if not provided
+                if prediction is None and fraud_score is not None:
+                    prediction = 1 if fraud_score > 0.5 else 0
+
                 # Add to inference history
                 history_entry = {
-                    'timestamp': result['timestamp'],
-                    'transaction_id': transaction_id,
-                    'prediction': result.get('prediction'),
-                    'fraud_score': result.get('fraud_score'),
-                    'success': result['success'],
-                    'latency_ms': result.get('latency_ms', 0)
+                    'Timestamp': result['timestamp'],
+                    'Transaction ID': transaction_id,
+                    'Prediction': '🚨 FRAUD' if prediction == 1 else '✅ LEGITIMATE' if prediction == 0 else 'Unknown',
+                    'Fraud Score': f"{fraud_score*100:.2f}%" if fraud_score is not None else 'N/A',
+                    'Status': 'Success' if result['success'] else 'Failed',
+                    'Latency (ms)': f"{result.get('latency_ms', 0):.0f}" if result.get('latency_ms') else 'N/A'
                 }
                 st.session_state.inference_history.append(history_entry)
                 if len(st.session_state.inference_history) > 100:
@@ -422,10 +459,6 @@ def show_single_transaction_inference():
                         st.metric("Time", timestamp)
 
                     st.markdown("---")
-
-                    # Prediction results
-                    prediction = result.get('prediction')
-                    fraud_score = result.get('fraud_score')
 
                     if fraud_score is not None:
                         col1, col2 = st.columns(2)
@@ -468,29 +501,74 @@ def show_single_transaction_inference():
                                 """, unsafe_allow_html=True)
 
                             st.markdown("<br>", unsafe_allow_html=True)
-                            st.markdown("**Model Response:**")
-                            st.json(result.get('response', {}))
+                            st.markdown("**Full API Response:**")
+                            st.json(api_data)
 
                     else:
                         st.warning("⚠️ API response received but no fraud score found")
-                        st.markdown("**Raw Response:**")
-                        st.json(result.get('response', {}))
+                        st.markdown("**Raw API Response:**")
+                        st.json(api_data)
+                        st.info("""
+                        💡 **Tip:** The API response should contain one of these fields:
+                        - `fraud_score` or `probability` (decimal between 0-1)
+                        - `score` or `fraud_probability`
+                        - `risk_score`
+
+                        Current response structure may not match expected format.
+                        """)
 
                 else:
                     # Error display
-                    st.error(f"❌ API Error: {result.get('error', 'Unknown error')}")
+                    error_msg = result.get('error', 'Unknown error')
+                    st.error(f"❌ **API Connection Failed**")
+
+                    st.markdown(f"""
+                    <div style='padding: 1rem; background-color: #dc354522; border-radius: 8px; border: 1px solid #dc3545; margin: 1rem 0;'>
+                        <h4 style='color: #dc3545; margin-top: 0;'>Error Details</h4>
+                        <p style='margin: 0.5rem 0;'><strong>Message:</strong> {error_msg}</p>
+                        <p style='margin: 0.5rem 0;'><strong>Endpoint:</strong> <code>{result.get('endpoint', 'N/A')}</code></p>
+                        <p style='margin: 0.5rem 0;'><strong>Timestamp:</strong> {result.get('timestamp', 'N/A')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                     col1, col2 = st.columns(2)
                     with col1:
                         if result.get('status_code'):
-                            st.metric("Status Code", result['status_code'])
+                            st.metric("HTTP Status Code", result['status_code'])
+                        else:
+                            st.metric("HTTP Status Code", "N/A", help="No response from server")
                     with col2:
                         if result.get('latency_ms'):
                             st.metric("Response Time", f"{result['latency_ms']:.0f}ms")
+                        else:
+                            st.metric("Response Time", "Timeout/No Response")
 
-                    if result.get('response'):
-                        st.markdown("**Response Details:**")
-                        st.code(str(result['response']))
+                    # Troubleshooting tips
+                    with st.expander("🔧 Troubleshooting Tips"):
+                        st.markdown("""
+                        **Common Causes:**
+                        1. **Connection Failed** - The API server is not reachable
+                           - Check if the endpoint URL is correct
+                           - Verify the server is running and accessible
+                           - Check your network connection
+
+                        2. **Timeout** - The API is taking too long to respond
+                           - Increase the timeout value in API Configuration
+                           - Check if the server is overloaded
+
+                        3. **Authentication Error** (401, 403)
+                           - Verify your API key is correct
+                           - Check if the authentication type matches server requirements
+
+                        4. **Server Error** (500, 502, 503)
+                           - The API server encountered an internal error
+                           - Check server logs for details
+                           - Contact the API administrator
+                        """)
+
+                    if result.get('error_data'):
+                        st.markdown("**Server Error Response:**")
+                        st.json(result['error_data'])
 
             except Exception as e:
                 st.error(f"❌ Error calling API: {str(e)}")
@@ -1286,15 +1364,16 @@ def show_inference_history():
         st.metric("Total Requests", len(st.session_state.inference_history))
 
     with col2:
-        success_count = len([h for h in st.session_state.inference_history if h['Status'] == 'Success'])
+        success_count = len([h for h in st.session_state.inference_history if h.get('Status') == 'Success'])
         st.metric("Successful", success_count)
 
     with col3:
-        api_count = len([h for h in st.session_state.inference_history if h['Mode'] == 'External API'])
-        st.metric("API Calls", api_count)
+        # Count entries that have a valid prediction
+        valid_count = len([h for h in st.session_state.inference_history if h.get('Prediction') and h.get('Prediction') != 'Unknown'])
+        st.metric("Valid Predictions", valid_count)
 
     with col4:
-        fraud_count = len([h for h in st.session_state.inference_history if 'fraud' in h['Prediction'].lower()])
+        fraud_count = len([h for h in st.session_state.inference_history if h.get('Prediction') and 'FRAUD' in h['Prediction']])
         st.metric("Fraud Detected", fraud_count)
 
     st.markdown("---")
