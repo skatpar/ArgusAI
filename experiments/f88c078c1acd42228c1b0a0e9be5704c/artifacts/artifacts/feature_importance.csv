@@ -1,0 +1,37 @@
+feature,feature_name,importance
+user_weekend_txns_7d,User Weekend Transactions (7 Days),0.05033646
+user_max_amount_3d,User Maximum Amount (3 Days),0.049931042
+user_avg_amount_3d,User Average Amount (3 Days),0.041309573
+user_total_txns_3d,User Total Transactions (3 Days),0.041133977
+user_unique_types_7d,User Unique Types (7 Days),0.039114144
+user_median_amount_3d,User Median Amount (3 Days),0.03801318
+user_median_amount_7d,User Median Amount (7 Days),0.036444973
+user_max_amount_to_single_recipient_7d,User Max Amount to One Recipient,0.035438992
+user_unique_channels_3d,User Unique Channels (3 Days),0.035008207
+user_off_peak_hour_txns_7d,User Off-Peak Transactions (7 Days),0.03428301
+user_avg_amount_7d,User Average Amount (7 Days),0.0333838
+user_total_amount_3d,User Total Amount (3 Days),0.032728665
+user_max_balance_7d,User Maximum Balance (7 Days),0.032590874
+user_unique_recipients_3d,User Unique Recipients (3 Days),0.031926602
+trx_amt,Transaction Amount (PKR),0.03177953
+user_min_amount_3d,User Minimum Amount (3 Days),0.031726185
+user_type_diversity_score_7d,User Transaction Type Diversity,0.026147585
+user_night_txns_7d,User Night Transactions (7 Days),0.02559959
+user_unique_recipients_7d,User Unique Recipients (7 Days),0.0255189
+user_balance_volatility_7d,User Balance Volatility,0.024805583
+user_channel_diversity_score_7d,User Channel Diversity Score,0.024322646
+user_txn_frequency_score_7d,User Transaction Frequency Score,0.024284957
+user_avg_amount_per_recipient_7d,User Avg Amount per Recipient,0.023971023
+user_min_balance_7d,User Minimum Balance (7 Days),0.023945954
+user_avg_end_balance_7d,User Average Ending Balance,0.02305428
+user_avg_start_balance_7d,User Average Starting Balance,0.023017274
+user_min_amount_7d,User Minimum Amount (7 Days),0.022587027
+user_unique_types_3d,User Unique Types (3 Days),0.022136193
+user_avg_time_between_txns_7d,User Avg Time Between Transactions,0.020921234
+user_recipient_concentration_ratio_7d,User Recipient Concentration,0.02006759
+user_total_amount_7d,User Total Amount (7 Days),0.019625807
+user_max_amount_7d,User Maximum Amount (7 Days),0.019315023
+user_peak_hour_txns_7d,User Peak Hour Transactions (7 Days),0.014142378
+user_unique_channels_7d,User Unique Channels (7 Days),0.011177485
+user_total_txns_7d,User Total Transactions (7 Days),0.010210244
+user_days_since_last_txn,Days Since User Last Transaction,0.0

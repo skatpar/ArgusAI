@@ -1,0 +1,37 @@
+feature,feature_name,correlation,abs_correlation
+trx_amt,Transaction Amount (PKR),0.0097186860406232,0.0097186860406232
+user_recipient_concentration_ratio_7d,User Recipient Concentration,0.005606966504107136,0.005606966504107136
+user_unique_channels_7d,User Unique Channels (7 Days),-0.0050506188471407315,0.0050506188471407315
+user_unique_types_7d,User Unique Types (7 Days),-0.004714535801602504,0.004714535801602504
+user_unique_recipients_7d,User Unique Recipients (7 Days),-0.004612818524478028,0.004612818524478028
+user_channel_diversity_score_7d,User Channel Diversity Score,-0.004187815337069279,0.004187815337069279
+user_unique_channels_3d,User Unique Channels (3 Days),-0.0040269233378260405,0.0040269233378260405
+user_unique_recipients_3d,User Unique Recipients (3 Days),-0.003911400261838948,0.003911400261838948
+user_unique_types_3d,User Unique Types (3 Days),-0.003876052229297862,0.003876052229297862
+user_total_txns_7d,User Total Transactions (7 Days),-0.00354173160048682,0.00354173160048682
+user_total_txns_3d,User Total Transactions (3 Days),-0.0033884753756070678,0.0033884753756070678
+user_type_diversity_score_7d,User Transaction Type Diversity,-0.003362866982515125,0.003362866982515125
+user_off_peak_hour_txns_7d,User Off-Peak Transactions (7 Days),-0.0033243372683399238,0.0033243372683399238
+user_peak_hour_txns_7d,User Peak Hour Transactions (7 Days),-0.0031277422376188237,0.0031277422376188237
+user_weekend_txns_7d,User Weekend Transactions (7 Days),-0.002632831933029783,0.002632831933029783
+user_txn_frequency_score_7d,User Transaction Frequency Score,-0.0023739967830305065,0.0023739967830305065
+user_night_txns_7d,User Night Transactions (7 Days),-0.0017079854509480408,0.0017079854509480408
+user_min_amount_3d,User Minimum Amount (3 Days),0.0012466731490706922,0.0012466731490706922
+user_total_amount_7d,User Total Amount (7 Days),-0.000839707170405906,0.000839707170405906
+user_max_balance_7d,User Maximum Balance (7 Days),-0.0008383361820512217,0.0008383361820512217
+user_max_amount_7d,User Maximum Amount (7 Days),-0.0008382878940478528,0.0008382878940478528
+user_max_amount_to_single_recipient_7d,User Max Amount to One Recipient,-0.0008382164196628649,0.0008382164196628649
+user_median_amount_7d,User Median Amount (7 Days),-0.0008106583378447765,0.0008106583378447765
+user_avg_end_balance_7d,User Average Ending Balance,-0.0007076376228584229,0.0007076376228584229
+user_avg_amount_7d,User Average Amount (7 Days),-0.0007074204128820837,0.0007074204128820837
+user_avg_start_balance_7d,User Average Starting Balance,-0.0007074204128820837,0.0007074204128820837
+user_median_amount_3d,User Median Amount (3 Days),0.0006910648436880015,0.0006910648436880015
+user_avg_amount_per_recipient_7d,User Avg Amount per Recipient,-0.0005551666803184321,0.0005551666803184321
+user_min_balance_7d,User Minimum Balance (7 Days),-0.0005431450714736312,0.0005431450714736312
+user_min_amount_7d,User Minimum Amount (7 Days),-0.0005428751555248906,0.0005428751555248906
+user_balance_volatility_7d,User Balance Volatility,-0.0005415004644125465,0.0005415004644125465
+user_total_amount_3d,User Total Amount (3 Days),-0.0004871994944486491,0.0004871994944486491
+user_avg_amount_3d,User Average Amount (3 Days),0.00048413588050464474,0.00048413588050464474
+user_max_amount_3d,User Maximum Amount (3 Days),-0.0003172981647483833,0.0003172981647483833
+user_avg_time_between_txns_7d,User Avg Time Between Transactions,1.7913448626145662e-05,1.7913448626145662e-05
+user_days_since_last_txn,Days Since User Last Transaction,,

@@ -1,0 +1,22 @@
+artifact_path: file:///root/research-dir/dev/ArgusAI/experiments/models/m-853a82b3490d42d89c5121f936287245/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.10.15
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: ubj
+    xgb_version: 3.1.2
+mlflow_version: 3.7.0
+model_id: m-853a82b3490d42d89c5121f936287245
+model_size_bytes: 181678
+model_uuid: m-853a82b3490d42d89c5121f936287245
+prompts: null
+run_id: 6a7255a8fe924bd583429430534de696
+utc_time_created: '2025-12-20 10:58:04.408707'

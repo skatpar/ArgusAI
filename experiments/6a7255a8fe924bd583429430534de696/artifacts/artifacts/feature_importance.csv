@@ -1,0 +1,37 @@
+feature,feature_name,importance
+trx_amt,Transaction Amount (PKR),0.09655692
+user_type_diversity_score_7d,User Transaction Type Diversity,0.08108169
+user_min_amount_7d,User Minimum Amount (7 Days),0.05921576
+user_total_txns_7d,User Total Transactions (7 Days),0.05769261
+user_unique_channels_7d,User Unique Channels (7 Days),0.055834096
+user_channel_diversity_score_7d,User Channel Diversity Score,0.040509544
+user_unique_channels_3d,User Unique Channels (3 Days),0.038523503
+user_median_amount_3d,User Median Amount (3 Days),0.03616671
+user_max_amount_to_single_recipient_7d,User Max Amount to One Recipient,0.03553299
+user_unique_recipients_7d,User Unique Recipients (7 Days),0.034555804
+user_total_amount_3d,User Total Amount (3 Days),0.03119824
+user_avg_amount_per_recipient_7d,User Avg Amount per Recipient,0.02909013
+user_unique_recipients_3d,User Unique Recipients (3 Days),0.028706202
+user_off_peak_hour_txns_7d,User Off-Peak Transactions (7 Days),0.027431084
+user_median_amount_7d,User Median Amount (7 Days),0.026587015
+user_min_amount_3d,User Minimum Amount (3 Days),0.026530152
+user_avg_amount_7d,User Average Amount (7 Days),0.02377483
+user_avg_end_balance_7d,User Average Ending Balance,0.021639481
+user_unique_types_3d,User Unique Types (3 Days),0.02146789
+user_avg_time_between_txns_7d,User Avg Time Between Transactions,0.021389365
+user_balance_volatility_7d,User Balance Volatility,0.018222526
+user_night_txns_7d,User Night Transactions (7 Days),0.018177759
+user_txn_frequency_score_7d,User Transaction Frequency Score,0.017061897
+user_peak_hour_txns_7d,User Peak Hour Transactions (7 Days),0.01703187
+user_min_balance_7d,User Minimum Balance (7 Days),0.016142204
+user_recipient_concentration_ratio_7d,User Recipient Concentration,0.016121456
+user_unique_types_7d,User Unique Types (7 Days),0.015756527
+user_max_balance_7d,User Maximum Balance (7 Days),0.013112542
+user_total_amount_7d,User Total Amount (7 Days),0.013071532
+user_weekend_txns_7d,User Weekend Transactions (7 Days),0.012986379
+user_max_amount_3d,User Maximum Amount (3 Days),0.012076861
+user_total_txns_3d,User Total Transactions (3 Days),0.010111925
+user_avg_amount_3d,User Average Amount (3 Days),0.009824354
+user_max_amount_7d,User Maximum Amount (7 Days),0.009079488
+user_avg_start_balance_7d,User Average Starting Balance,0.0077386196
+user_days_since_last_txn,Days Since User Last Transaction,0.0

@@ -1,0 +1,15 @@
+{
+  "auc_roc": 0.8920230967468186,
+  "average_precision": 0.0007474673621579815,
+  "accuracy": 0.991867448328283,
+  "precision_fraud": 0.0009231479344564967,
+  "recall_fraud": 0.0784313725490196,
+  "f1_score_fraud": 0.0018248175182481753,
+  "specificity": 0.9919540326020592,
+  "false_positive_rate": 0.008045967397940834,
+  "false_negative_rate": 0.9215686274509803,
+  "true_positives": 8,
+  "true_negatives": 1067409,
+  "false_positives": 8658,
+  "false_negatives": 94
+}
