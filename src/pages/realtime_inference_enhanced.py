@@ -118,17 +118,26 @@ def show_single_transaction_enhanced():
                     display_name = f"{run_name} ({model_type}) - {start_time}"
 
                     # Get metrics - use different metric names based on what's available
+                    # Handle NaN values properly
                     recall = row.get('metrics.recall_fraud', row.get('metrics.recall', 0))
+                    if pd.isna(recall):
+                        recall = 0.0
+
                     precision = row.get('metrics.precision_fraud', row.get('metrics.precision', 0))
+                    if pd.isna(precision):
+                        precision = 0.0
+
                     true_positives = row.get('metrics.true_positives', 0)
+                    if pd.isna(true_positives):
+                        true_positives = 0
 
                     run_options[display_name] = {
                         'run_id': run_id,
                         'run_name': run_name,
                         'model_type': model_type,
                         'metrics': {
-                            'recall': recall,
-                            'precision': precision,
+                            'recall': float(recall),
+                            'precision': float(precision),
                             'true_positives': int(true_positives)
                         }
                     }
