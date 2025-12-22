@@ -116,14 +116,20 @@ def show_single_transaction_enhanced():
                     start_time = pd.to_datetime(row['start_time']).strftime('%Y-%m-%d %H:%M')
 
                     display_name = f"{run_name} ({model_type}) - {start_time}"
+
+                    # Get metrics - use different metric names based on what's available
+                    recall = row.get('metrics.recall_fraud', row.get('metrics.recall', 0))
+                    precision = row.get('metrics.precision_fraud', row.get('metrics.precision', 0))
+                    true_positives = row.get('metrics.true_positives', 0)
+
                     run_options[display_name] = {
                         'run_id': run_id,
                         'run_name': run_name,
                         'model_type': model_type,
                         'metrics': {
-                            'auc': row.get('metrics.auc_roc', 0),
-                            'f1': row.get('metrics.f1_score', 0),
-                            'precision': row.get('metrics.precision', 0)
+                            'recall': recall,
+                            'precision': precision,
+                            'true_positives': int(true_positives)
                         }
                     }
 
@@ -142,8 +148,8 @@ def show_single_transaction_enhanced():
                 # Display run metrics
                 metrics = selected_run_info['metrics']
                 st.metric("Model Type", selected_run_info['model_type'])
-                st.metric("AUC", f"{metrics['auc']:.4f}")
-                st.metric("F1 Score", f"{metrics['f1']:.4f}")
+                st.metric("Detection Rate (Recall)", f"{metrics['recall']:.2%}")
+                st.metric("Detected Cases", f"{metrics['true_positives']:,}")
 
             # Load feature importance from MLflow
             with st.spinner("Loading artifacts from MLflow..."):

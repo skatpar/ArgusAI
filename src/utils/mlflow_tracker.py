@@ -241,6 +241,7 @@ class MLflowTracker:
 
             # Look for feature importance CSV in different possible locations
             possible_paths = [
+                'artifacts',  # XGBoost training script logs to artifacts/
                 'analysis',
                 'plots',
                 ''  # root level
@@ -295,7 +296,7 @@ class MLflowTracker:
             artifacts = client.list_artifacts(run_id)
 
             # Look for SHAP files (.npy or .csv)
-            possible_paths = ['analysis', 'plots', '']
+            possible_paths = ['artifacts', 'analysis', 'plots', '']
 
             shap_file = None
             for path_prefix in possible_paths:
@@ -401,29 +402,66 @@ class MLflowTracker:
             return None
 
     @staticmethod
-    def load_model_from_run(tracking_uri, run_id, model_path="model"):
+    def load_model_from_run(tracking_uri, run_id, model_path=None):
         """
         Load a model from a specific MLflow run
 
         Args:
             tracking_uri: MLflow tracking server URI
             run_id: Run ID to load model from
-            model_path: Path to model within run artifacts
+            model_path: Path to model within run artifacts (auto-detect if None)
 
         Returns:
             Loaded model or None
         """
         try:
             mlflow.set_tracking_uri(tracking_uri)
+
+            # If model_path not specified, try to auto-detect
+            if model_path is None:
+                client = MlflowClient(tracking_uri=tracking_uri)
+                artifacts = client.list_artifacts(run_id)
+
+                # Check for common model artifact names
+                for artifact in artifacts:
+                    if artifact.path in ['xgboost_model', 'model', 'sklearn_model', 'pytorch_model', 'tensorflow_model']:
+                        model_path = artifact.path
+                        print(f"Auto-detected model path: {model_path}")
+                        break
+
+                # Default to 'model' if nothing found
+                if model_path is None:
+                    model_path = "model"
+
             model_uri = f"runs:/{run_id}/{model_path}"
 
-            # Try to load as sklearn first, then pyfunc as fallback
+            # Try different model loaders
             try:
-                model = mlflow.sklearn.load_model(model_uri)
+                # Try XGBoost first (for XGBoost models)
+                import mlflow.xgboost
+                model = mlflow.xgboost.load_model(model_uri)
+                print(f"Loaded XGBoost model from {model_path}")
+                return model
             except:
-                model = mlflow.pyfunc.load_model(model_uri)
+                pass
 
-            return model
+            try:
+                # Try sklearn
+                model = mlflow.sklearn.load_model(model_uri)
+                print(f"Loaded sklearn model from {model_path}")
+                return model
+            except:
+                pass
+
+            try:
+                # Try pyfunc as universal fallback
+                model = mlflow.pyfunc.load_model(model_uri)
+                print(f"Loaded pyfunc model from {model_path}")
+                return model
+            except Exception as e:
+                print(f"Failed to load model: {e}")
+                return None
+
         except Exception as e:
             print(f"Error loading model from run: {e}")
             return None
