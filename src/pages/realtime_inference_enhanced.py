@@ -321,6 +321,10 @@ def show_single_transaction_enhanced():
             if not isinstance(api_data, dict):
                 api_data = {}
 
+            # Handle nested data structure (API may return data.data)
+            if 'data' in api_data and isinstance(api_data['data'], dict):
+                api_data = api_data['data']
+
             # Debug: Show what API returned
             with st.expander("🔍 Debug: API Response", expanded=False):
                 st.json(result)
