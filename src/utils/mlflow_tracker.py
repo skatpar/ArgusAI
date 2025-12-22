@@ -336,6 +336,66 @@ class MLflowTracker:
             return None
 
     @staticmethod
+    def load_shap_plots_from_run(tracking_uri, run_id):
+        """
+        Load SHAP plot images from MLflow run artifacts
+
+        Args:
+            tracking_uri: MLflow tracking server URI
+            run_id: Run ID to load from
+
+        Returns:
+            Dictionary with plot names and their local paths
+        """
+        try:
+            mlflow.set_tracking_uri(tracking_uri)
+            client = MlflowClient(tracking_uri=tracking_uri)
+
+            # Look for SHAP plot images in artifacts
+            possible_paths = ['artifacts', 'plots', 'analysis', '']
+
+            shap_plots = {}
+            plot_patterns = [
+                'shap_summary_beeswarm',
+                'shap_importance_bar',
+                'shap_dependence_plots',
+                'shap_case_comparison',
+                'shap_waterfall_fraud',
+                'shap_force_plot_fraud'
+            ]
+
+            for path_prefix in possible_paths:
+                try:
+                    if path_prefix:
+                        artifacts_in_path = client.list_artifacts(run_id, path=path_prefix)
+                    else:
+                        artifacts_in_path = client.list_artifacts(run_id)
+
+                    for artifact in artifacts_in_path:
+                        # Check if artifact matches any SHAP plot pattern
+                        for pattern in plot_patterns:
+                            if pattern in artifact.path and artifact.path.endswith('.png'):
+                                plot_name = pattern.replace('shap_', '').replace('_', ' ').title()
+
+                                # Download the plot
+                                local_path = client.download_artifacts(run_id, artifact.path)
+                                shap_plots[plot_name] = local_path
+                                print(f"Found SHAP plot: {plot_name} at {artifact.path}")
+                except:
+                    continue
+
+            if not shap_plots:
+                print(f"No SHAP plots found in run {run_id}")
+                return None
+
+            print(f"Loaded {len(shap_plots)} SHAP plots")
+            return shap_plots
+
+        except Exception as e:
+            print(f"Error loading SHAP plots: {e}")
+            return None
+
+    @staticmethod
     def get_run_metadata(tracking_uri, run_id):
         """
         Get metadata for a specific run

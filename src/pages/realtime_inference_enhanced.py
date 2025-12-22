@@ -35,6 +35,7 @@ def show_single_transaction_enhanced():
 
     feature_importance = None
     shap_values = None
+    shap_plots = None
     selected_model_id = None
     selected_run_id = None
     selected_model_name = None
@@ -160,7 +161,7 @@ def show_single_transaction_enhanced():
                 st.metric("Detection Rate (Recall)", f"{metrics['recall']:.2%}")
                 st.metric("Detected Cases", f"{metrics['true_positives']:,}")
 
-            # Load feature importance from MLflow
+            # Load feature importance and SHAP plots from MLflow
             with st.spinner("Loading artifacts from MLflow..."):
                 feature_importance = MLflowTracker.load_feature_importance_from_run(
                     tracking_uri, selected_run_id
@@ -175,6 +176,16 @@ def show_single_transaction_enhanced():
                         st.success("✓ SHAP values loaded")
                 except Exception as e:
                     st.info("SHAP values not available for this run")
+
+                # Load SHAP plots (images)
+                try:
+                    shap_plots = MLflowTracker.load_shap_plots_from_run(
+                        tracking_uri, selected_run_id
+                    )
+                    if shap_plots:
+                        st.success(f"✓ {len(shap_plots)} SHAP plots loaded")
+                except Exception as e:
+                    st.info("SHAP plots not available for this run")
 
         except Exception as e:
             st.error(f"Error connecting to MLflow: {str(e)}")
@@ -448,6 +459,51 @@ def show_single_transaction_enhanced():
                         except Exception as e:
                             st.error(f"Error computing SHAP values: {str(e)}")
                             st.info("SHAP analysis requires the 'shap' library and works best with tree-based models")
+
+                        # Display SHAP plots from MLflow if available
+                        if 'shap_plots' in locals() and shap_plots:
+                            st.markdown("---")
+                            st.markdown("#### 📊 SHAP Summary Plots from Training")
+                            st.markdown("Model-level SHAP analysis from the training dataset")
+
+                            # Create tabs for different SHAP plots
+                            plot_names = list(shap_plots.keys())
+                            if plot_names:
+                                shap_plot_tabs = st.tabs(plot_names)
+
+                                for i, plot_name in enumerate(plot_names):
+                                    with shap_plot_tabs[i]:
+                                        plot_path = shap_plots[plot_name]
+                                        try:
+                                            from PIL import Image
+                                            image = Image.open(plot_path)
+                                            st.image(image, use_column_width=True, caption=plot_name)
+
+                                            # Add description based on plot type
+                                            if 'beeswarm' in plot_name.lower():
+                                                st.info("""
+                                                **Beeswarm Plot**: Shows the distribution of SHAP values for each feature across all predictions.
+                                                - Each dot represents a sample
+                                                - Color indicates feature value (red=high, blue=low)
+                                                - Position shows SHAP value (impact on prediction)
+                                                """)
+                                            elif 'bar' in plot_name.lower():
+                                                st.info("""
+                                                **Feature Importance Bar**: Shows mean absolute SHAP values for each feature.
+                                                - Higher bars = more important features globally
+                                                """)
+                                            elif 'dependence' in plot_name.lower():
+                                                st.info("""
+                                                **Dependence Plots**: Show how feature values relate to SHAP values.
+                                                - Reveals non-linear relationships and interactions
+                                                """)
+                                            elif 'waterfall' in plot_name.lower():
+                                                st.info("""
+                                                **Waterfall Plot**: Shows how features contribute to a specific fraud prediction.
+                                                - Each bar shows a feature's contribution
+                                                """)
+                                        except Exception as e:
+                                            st.error(f"Error loading plot: {e}")
 
                     # Tab 3: Decision Rules
                     with explain_tabs[2]:
