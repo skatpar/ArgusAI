@@ -260,135 +260,218 @@ def show_single_transaction_enhanced():
 
         model = st.session_state.loaded_mlflow_model
 
-        # Get model parameters
-        model_params = MLflowTracker.get_model_params(tracking_uri, selected_run_id)
+        # Transaction ID input (similar to API-based interface)
+        st.markdown("**Enter Transaction ID:**")
 
-        # Feature input form
-        st.markdown("**Enter Transaction Features:**")
+        col1, col2 = st.columns([3, 1])
 
-        # Define common fraud detection features (user can modify based on their model)
-        with st.form("transaction_features"):
-            col1, col2, col3 = st.columns(3)
+        with col1:
+            transaction_id = st.text_input(
+                "Transaction ID:",
+                placeholder="Enter transaction ID (e.g., 83863011837)",
+                key="mlflow_tx_id"
+            )
 
-            with col1:
-                transaction_amount = st.number_input("Transaction Amount", min_value=0.0, value=1250.0, step=10.0)
-                customer_age = st.number_input("Customer Age", min_value=18, max_value=100, value=35)
-                account_age_days = st.number_input("Account Age (days)", min_value=0, value=730)
+        with col2:
+            st.markdown("<div style='height: 1.8rem;'></div>", unsafe_allow_html=True)
+            score_button = st.button("Score with MLflow Model", type="primary", use_container_width=True, key="mlflow_score_btn")
 
-            with col2:
-                transaction_hour = st.number_input("Transaction Hour (0-23)", min_value=0, max_value=23, value=14)
-                previous_transactions = st.number_input("Previous Transactions", min_value=0, value=125)
-                distance_from_home = st.number_input("Distance from Home (km)", min_value=0.0, value=5.2, step=0.1)
+        if score_button and transaction_id.strip():
+            # Call API to get transaction data (use the same API endpoint)
+            with st.spinner("Fetching transaction data..."):
+                transaction_data = {"transaction_id": transaction_id.strip()}
 
-            with col3:
-                merchant_category = st.selectbox("Merchant Category", ["online", "retail", "grocery", "gas", "restaurant"])
-                is_foreign = st.checkbox("Foreign Transaction")
-                device_type = st.selectbox("Device Type", ["mobile", "desktop", "tablet"])
+            result = call_api_inference(
+                endpoint_url=st.session_state.api_config['endpoint_url'],
+                transaction_data=transaction_data,
+                auth_type=st.session_state.api_config.get('auth_type', 'None'),
+                auth_value=st.session_state.api_config.get('auth_value', '')
+            )
 
-            score_button = st.form_submit_button("Score Transaction with MLflow Model", type="primary", use_container_width=True)
+            if result.get('status') != 'SUCCESS':
+                st.error(f"Error: {result.get('message', 'Unknown error')}")
+                return
 
-        if score_button:
-            # Prepare features for prediction
-            feature_dict = {
-                'transaction_amount': transaction_amount,
-                'customer_age': customer_age,
-                'account_age_days': account_age_days,
-                'transaction_hour': transaction_hour,
-                'previous_transactions': previous_transactions,
-                'distance_from_home': distance_from_home,
-                'merchant_category': merchant_category,
-                'is_foreign': 1 if is_foreign else 0,
-                'device_type': device_type
-            }
+            # Get the feature vector from API response
+            api_data = result.get('data', {})
 
-            # Convert to DataFrame (models expect DataFrame input)
-            X_input = pd.DataFrame([feature_dict])
+            # Extract features - the API should return features
+            # If features are not in response, we can't proceed
+            if 'features' not in api_data and 'feature_vector' not in api_data:
+                st.error("API response does not contain feature data needed for MLflow model inference")
+                st.info("The API endpoint needs to return transaction features for direct model scoring")
+                return
 
-            # One-hot encode categorical variables if needed
-            if 'merchant_category' in X_input.columns:
-                X_input = pd.get_dummies(X_input, columns=['merchant_category', 'device_type'])
+            # Get features from API
+            if 'features' in api_data:
+                features_dict = api_data['features']
+            else:
+                features_dict = api_data['feature_vector']
 
-            # Make prediction
+            # Convert to DataFrame for model input
+            X_input = pd.DataFrame([features_dict])
+
+            # Make prediction with MLflow model
             with st.spinner("Making prediction with MLflow model..."):
-                fraud_score = MLflowTracker.predict_with_model(model, X_input, return_proba=True)
-                if fraud_score is not None and len(fraud_score) > 0:
-                    fraud_score = float(fraud_score[0])
+                try:
+                    # Get probability prediction
+                    fraud_score_array = model.predict_proba(X_input)
+
+                    # Handle different output formats
+                    if len(fraud_score_array.shape) == 2:
+                        fraud_score = float(fraud_score_array[0][1])  # Probability of class 1 (fraud)
+                    else:
+                        fraud_score = float(fraud_score_array[0])
+
                     prediction = 1 if fraud_score > 0.5 else 0
 
-                    # Display Results
-                    st.markdown("---")
-                    st.markdown("### 🎯 Prediction Results")
+                except Exception as e:
+                    st.error(f"Error making prediction: {e}")
+                    return
 
-                    # Metrics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        score_pct = fraud_score * 100
-                        st.metric("Fraud Score", f"{score_pct:.2f}%")
-                    with col2:
-                        pred_label = "FRAUD" if prediction == 1 else "LEGITIMATE"
-                        pred_color = "🔴" if prediction == 1 else "🟢"
-                        st.metric("Prediction", f"{pred_color} {pred_label}")
-                    with col3:
-                        st.metric("Model", selected_model_name[:30])
+                # Display Results in similar format to API-based interface
+                st.markdown("---")
+                st.markdown("### 🎯 Prediction Results")
 
-                    st.markdown("---")
+                # Create two columns for gauge and details
+                col_gauge, col_details = st.columns([1, 1])
 
-                    # ===== COMPREHENSIVE EXPLAIN SECTION =====
-                    st.markdown("### 🔍 MODEL EXPLANATION")
+                with col_gauge:
+                    st.markdown("#### Fraud Score Gauge")
 
-                    explain_tabs = st.tabs([
-                        "📊 Feature Importance",
-                        "🎯 SHAP Analysis",
-                        "🌳 Decision Rules",
-                        "⚙️ Model Info"
-                    ])
+                    # Determine risk level and color
+                    score_pct = fraud_score * 100
+                    if score_pct >= 70:
+                        color = "#dc3545"  # Red
+                        risk_level = "HIGH RISK"
+                    elif score_pct >= 40:
+                        color = "#ffc107"  # Yellow
+                        risk_level = "MEDIUM RISK"
+                    else:
+                        color = "#28a745"  # Green
+                        risk_level = "LOW RISK"
 
-                    # Tab 1: Feature Importance
-                    with explain_tabs[0]:
-                        st.markdown("#### Feature Importance")
-                        st.markdown("Shows which features the model considers most important overall")
+                    # Create gauge chart
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=score_pct,
+                        domain={'x': [0, 1], 'y': [0, 1]},
+                        title={'text': "Fraud Probability", 'font': {'size': 20}},
+                        number={'suffix': "%", 'font': {'size': 40}},
+                        gauge={
+                            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+                            'bar': {'color': color, 'thickness': 0.3},
+                            'bgcolor': "white",
+                            'borderwidth': 2,
+                            'bordercolor': "gray",
+                            'steps': [
+                                {'range': [0, 40], 'color': '#28a74533'},
+                                {'range': [40, 70], 'color': '#ffc10733'},
+                                {'range': [70, 100], 'color': '#dc354533'}
+                            ],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': 70
+                            }
+                        }
+                    ))
 
-                        if feature_importance is not None and not feature_importance.empty:
-                            # Display top features
-                            top_n = 15
-                            top_features = feature_importance.head(top_n)
+                    fig.update_layout(
+                        height=350,
+                        margin=dict(l=20, r=20, t=50, b=20),
+                        paper_bgcolor="white",
+                        font={'color': "darkgray", 'family': "Arial"}
+                    )
 
-                            # Create bar chart
-                            fig = go.Figure(go.Bar(
-                                x=top_features['importance'],
-                                y=top_features['feature'],
-                                orientation='h',
-                                marker=dict(
-                                    color=top_features['importance'],
-                                    colorscale='Viridis',
-                                    showscale=True,
-                                    colorbar=dict(title="Importance")
-                                )
-                            ))
+                    # Use unique key to force re-render
+                    chart_key = f"gauge_mlflow_{selected_model_name}_{transaction_id}"
+                    st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
-                            fig.update_layout(
-                                title=f"Top {top_n} Most Important Features",
-                                xaxis_title="Importance Score",
-                                yaxis_title="Feature",
-                                height=500,
-                                showlegend=False
+                    st.markdown(f"<h3 style='text-align: center; color: {color};'>{risk_level}</h3>",
+                                unsafe_allow_html=True)
+
+                with col_details:
+                    st.markdown("#### Prediction Details")
+
+                    # Prediction label with colored box
+                    pred_label = "FRAUD" if prediction == 1 else "LEGITIMATE"
+                    pred_bg_color = "#d4edda" if prediction == 0 else "#f8d7da"
+                    pred_text_color = "#155724" if prediction == 0 else "#721c24"
+
+                    st.markdown(f"""
+                    <div style='padding: 2rem; background-color: {pred_bg_color};
+                                border: 2px solid {pred_text_color}; border-radius: 8px; text-align: center;'>
+                        <h2 style='color: {pred_text_color}; margin: 0;'>{pred_label}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                    # Model and transaction info
+                    st.markdown(f"**Model:** `{selected_model_name}`")
+                    st.markdown(f"**Model Source:** MLflow Run")
+                    st.markdown(f"**Risk Level:** {risk_level}")
+                    st.markdown(f"**Transaction ID:** {transaction_id}")
+
+                st.markdown("---")
+
+                # ===== COMPREHENSIVE EXPLAIN SECTION =====
+                st.markdown("### 🔍 MODEL EXPLANATION")
+
+                explain_tabs = st.tabs([
+                    "📊 Feature Importance",
+                    "🎯 SHAP Analysis",
+                    "🌳 Decision Rules",
+                    "⚙️ Model Info"
+                ])
+
+                # Tab 1: Feature Importance
+                with explain_tabs[0]:
+                    st.markdown("#### Feature Importance")
+                    st.markdown("Shows which features the model considers most important overall")
+
+                    if feature_importance is not None and not feature_importance.empty:
+                        # Display top features
+                        top_n = 15
+                        top_features = feature_importance.head(top_n)
+
+                        # Create bar chart
+                        fig = go.Figure(go.Bar(
+                            x=top_features['importance'],
+                            y=top_features['feature'],
+                            orientation='h',
+                            marker=dict(
+                                color=top_features['importance'],
+                                colorscale='Viridis',
+                                showscale=True,
+                                colorbar=dict(title="Importance")
                             )
+                        ))
 
-                            st.plotly_chart(fig, use_container_width=True)
+                        fig.update_layout(
+                            title=f"Top {top_n} Most Important Features",
+                            xaxis_title="Importance Score",
+                            yaxis_title="Feature",
+                            height=500,
+                            showlegend=False
+                        )
 
-                            # Show table
-                            st.dataframe(
-                                top_features[['feature', 'importance']].head(20),
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                        else:
-                            st.warning("Feature importance not available for this model")
+                        st.plotly_chart(fig, use_container_width=True)
 
-                    # Tab 2: SHAP Analysis
-                    with explain_tabs[1]:
-                        st.markdown("#### SHAP Analysis (SHapley Additive exPlanations)")
-                        st.markdown("Shows how each feature value contributed to **this specific prediction**")
+                        # Show table
+                        st.dataframe(
+                            top_features[['feature', 'importance']].head(20),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.warning("Feature importance not available for this model")
+
+                # Tab 2: SHAP Analysis
+                with explain_tabs[1]:
+                    st.markdown("#### SHAP Analysis (SHapley Additive exPlanations)")
+                    st.markdown("Shows how each feature value contributed to **this specific prediction**")
 
                         try:
                             # Compute SHAP values for this instance
@@ -507,8 +590,8 @@ def show_single_transaction_enhanced():
 
                     # Tab 3: Decision Rules
                     with explain_tabs[2]:
-                        st.markdown("#### Decision Tree Rules")
-                        st.markdown("Extracted decision rules from the model (for tree-based models)")
+                    st.markdown("#### Decision Tree Rules")
+                    st.markdown("Extracted decision rules from the model (for tree-based models)")
 
                         try:
                             feature_names_for_rules = feature_importance['feature'].tolist() if feature_importance is not None else None
@@ -576,7 +659,7 @@ def show_single_transaction_enhanced():
 
                     # Tab 4: Model Info
                     with explain_tabs[3]:
-                        st.markdown("#### Model Information")
+                    st.markdown("#### Model Information")
 
                         # Model type
                         model_type_str = str(type(model).__name__)
