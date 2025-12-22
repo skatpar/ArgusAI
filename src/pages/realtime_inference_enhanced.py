@@ -263,6 +263,21 @@ def show_single_transaction_enhanced():
         # Get model parameters
         model_params = MLflowTracker.get_model_params(tracking_uri, selected_run_id)
 
+        # Check if API is configured
+        api_configured = bool(st.session_state.api_config.get('endpoint_url'))
+
+        if not api_configured:
+            st.warning("⚠️ API endpoint not configured")
+            st.info("Please configure the API endpoint in the **API Configuration** section at the top of this page.")
+            st.markdown("""
+            **To configure:**
+            1. Scroll to the top of the page
+            2. Expand the "API Configuration" section
+            3. Enter your API endpoint URL (e.g., `http://localhost:5002/predict`)
+            4. Click "Save Configuration"
+            """)
+            return
+
         # Transaction ID input
         st.markdown("**Enter Transaction ID:**")
 
