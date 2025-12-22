@@ -473,71 +473,71 @@ def show_single_transaction_enhanced():
                     st.markdown("#### SHAP Analysis (SHapley Additive exPlanations)")
                     st.markdown("Shows how each feature value contributed to **this specific prediction**")
 
-                        try:
-                            # Compute SHAP values for this instance
-                            feature_names = X_input.columns.tolist() if hasattr(X_input, 'columns') else None
+                    try:
+                        # Compute SHAP values for this instance
+                        feature_names = X_input.columns.tolist() if hasattr(X_input, 'columns') else None
 
-                            shap_result = MLflowTracker.compute_shap_for_instance(
-                                model,
-                                X_input.values,
-                                feature_names=feature_names
+                        shap_result = MLflowTracker.compute_shap_for_instance(
+                            model,
+                            X_input.values,
+                            feature_names=feature_names
+                        )
+
+                        if shap_result is not None:
+                            contributions = shap_result['contributions']
+                            base_value = shap_result['base_value']
+
+                            st.success("✓ SHAP analysis completed")
+
+                            # Show base value
+                            if isinstance(base_value, (list, np.ndarray)):
+                                base_value = base_value[1] if len(base_value) > 1 else base_value[0]
+
+                            st.metric("Base Value (Average Model Output)", f"{float(base_value):.4f}")
+
+                            # Waterfall chart of top contributions
+                            st.markdown("**Top Feature Contributions to This Prediction:**")
+
+                            top_contrib = contributions.head(15)
+
+                            # Create waterfall-style chart
+                            colors = ['red' if x > 0 else 'green' for x in top_contrib['shap_value']]
+
+                            fig = go.Figure(go.Bar(
+                                x=top_contrib['shap_value'],
+                                y=top_contrib['feature'],
+                                orientation='h',
+                                marker=dict(color=colors),
+                                text=[f"{v:.4f}" for v in top_contrib['shap_value']],
+                                textposition='outside'
+                            ))
+
+                            fig.update_layout(
+                                title="SHAP Values - Feature Contributions",
+                                xaxis_title="SHAP Value (Impact on Prediction)",
+                                yaxis_title="Feature",
+                                height=500,
+                                showlegend=False
                             )
 
-                            if shap_result is not None:
-                                contributions = shap_result['contributions']
-                                base_value = shap_result['base_value']
+                            fig.add_vline(x=0, line_dash="dash", line_color="gray")
 
-                                st.success("✓ SHAP analysis completed")
+                            st.plotly_chart(fig, use_container_width=True)
 
-                                # Show base value
-                                if isinstance(base_value, (list, np.ndarray)):
-                                    base_value = base_value[1] if len(base_value) > 1 else base_value[0]
+                            # Show detailed table
+                            st.markdown("**Detailed Contributions:**")
+                            display_contrib = contributions[['feature', 'value', 'shap_value', 'abs_shap']].copy()
+                            display_contrib.columns = ['Feature', 'Feature Value', 'SHAP Value', 'Absolute Impact']
+                            st.dataframe(display_contrib.head(20), use_container_width=True, hide_index=True)
 
-                                st.metric("Base Value (Average Model Output)", f"{float(base_value):.4f}")
-
-                                # Waterfall chart of top contributions
-                                st.markdown("**Top Feature Contributions to This Prediction:**")
-
-                                top_contrib = contributions.head(15)
-
-                                # Create waterfall-style chart
-                                colors = ['red' if x > 0 else 'green' for x in top_contrib['shap_value']]
-
-                                fig = go.Figure(go.Bar(
-                                    x=top_contrib['shap_value'],
-                                    y=top_contrib['feature'],
-                                    orientation='h',
-                                    marker=dict(color=colors),
-                                    text=[f"{v:.4f}" for v in top_contrib['shap_value']],
-                                    textposition='outside'
-                                ))
-
-                                fig.update_layout(
-                                    title="SHAP Values - Feature Contributions",
-                                    xaxis_title="SHAP Value (Impact on Prediction)",
-                                    yaxis_title="Feature",
-                                    height=500,
-                                    showlegend=False
-                                )
-
-                                fig.add_vline(x=0, line_dash="dash", line_color="gray")
-
-                                st.plotly_chart(fig, use_container_width=True)
-
-                                # Show detailed table
-                                st.markdown("**Detailed Contributions:**")
-                                display_contrib = contributions[['feature', 'value', 'shap_value', 'abs_shap']].copy()
-                                display_contrib.columns = ['Feature', 'Feature Value', 'SHAP Value', 'Absolute Impact']
-                                st.dataframe(display_contrib.head(20), use_container_width=True, hide_index=True)
-
-                                st.info("""
-                                **How to read SHAP values:**
-                                - Positive SHAP value (red): Feature pushes prediction towards fraud
-                                - Negative SHAP value (green): Feature pushes prediction towards legitimate
-                                - Larger absolute value = stronger influence on prediction
-                                """)
+                            st.info("""
+                            **How to read SHAP values:**
+                            - Positive SHAP value (red): Feature pushes prediction towards fraud
+                            - Negative SHAP value (green): Feature pushes prediction towards legitimate
+                            - Larger absolute value = stronger influence on prediction
+                            """)
                             else:
-                                st.warning("SHAP analysis not available (requires tree-based model)")
+                            st.warning("SHAP analysis not available (requires tree-based model)")
 
                         except Exception as e:
                             st.error(f"Error computing SHAP values: {str(e)}")
@@ -552,12 +552,12 @@ def show_single_transaction_enhanced():
                             # Create tabs for different SHAP plots
                             plot_names = list(shap_plots.keys())
                             if plot_names:
-                                shap_plot_tabs = st.tabs(plot_names)
+                            shap_plot_tabs = st.tabs(plot_names)
 
-                                for i, plot_name in enumerate(plot_names):
-                                    with shap_plot_tabs[i]:
-                                        plot_path = shap_plots[plot_name]
-                                        try:
+                            for i, plot_name in enumerate(plot_names):
+                                with shap_plot_tabs[i]:
+                                    plot_path = shap_plots[plot_name]
+                                    try:
                                             from PIL import Image
                                             image = Image.open(plot_path)
                                             st.image(image, use_column_width=True, caption=plot_name)

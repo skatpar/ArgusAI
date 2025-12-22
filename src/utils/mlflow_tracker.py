@@ -498,20 +498,19 @@ class MLflowTracker:
             # Try different model loaders
             try:
                 # Try XGBoost first (for XGBoost models)
-                import mlflow.xgboost
                 model = mlflow.xgboost.load_model(model_uri)
                 print(f"Loaded XGBoost model from {model_path}")
                 return model
-            except:
-                pass
+            except Exception as e:
+                print(f"XGBoost loader failed: {e}")
 
             try:
                 # Try sklearn
                 model = mlflow.sklearn.load_model(model_uri)
                 print(f"Loaded sklearn model from {model_path}")
                 return model
-            except:
-                pass
+            except Exception as e:
+                print(f"sklearn loader failed: {e}")
 
             try:
                 # Try pyfunc as universal fallback
@@ -519,7 +518,7 @@ class MLflowTracker:
                 print(f"Loaded pyfunc model from {model_path}")
                 return model
             except Exception as e:
-                print(f"Failed to load model: {e}")
+                print(f"pyfunc loader failed: {e}")
                 return None
 
         except Exception as e:
