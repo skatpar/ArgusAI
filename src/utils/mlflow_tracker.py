@@ -480,49 +480,68 @@ class MLflowTracker:
             # If model_path not specified, try to auto-detect
             if model_path is None:
                 client = MlflowClient(tracking_uri=tracking_uri)
-                artifacts = client.list_artifacts(run_id)
 
-                # Check for common model artifact names
+                # First check root level artifacts
+                artifacts = client.list_artifacts(run_id)
+                print(f"Artifacts at root: {[a.path for a in artifacts]}")
+
+                # Check for common model artifact names at root
                 for artifact in artifacts:
                     if artifact.path in ['xgboost_model', 'model', 'sklearn_model', 'pytorch_model', 'tensorflow_model']:
                         model_path = artifact.path
-                        print(f"Auto-detected model path: {model_path}")
+                        print(f"✓ Auto-detected model path: {model_path}")
                         break
 
-                # Default to 'model' if nothing found
+                # If not found at root, check inside 'artifacts' directory
                 if model_path is None:
-                    model_path = "model"
+                    try:
+                        artifacts_dir = client.list_artifacts(run_id, path="artifacts")
+                        print(f"Artifacts in 'artifacts/': {[a.path for a in artifacts_dir]}")
+                        for artifact in artifacts_dir:
+                            artifact_name = artifact.path.split('/')[-1]
+                            if artifact_name in ['xgboost_model', 'model', 'sklearn_model']:
+                                model_path = artifact.path
+                                print(f"✓ Auto-detected model path: {model_path}")
+                                break
+                    except:
+                        pass
+
+                # Default to 'xgboost_model' if nothing found
+                if model_path is None:
+                    model_path = "xgboost_model"
+                    print(f"⚠ No model found, trying default: {model_path}")
 
             model_uri = f"runs:/{run_id}/{model_path}"
+            print(f"Attempting to load from: {model_uri}")
 
             # Try different model loaders
             try:
                 # Try XGBoost first (for XGBoost models)
                 model = mlflow.xgboost.load_model(model_uri)
-                print(f"Loaded XGBoost model from {model_path}")
+                print(f"✓ Loaded XGBoost model from {model_path}")
                 return model
             except Exception as e:
-                print(f"XGBoost loader failed: {e}")
+                print(f"✗ XGBoost loader failed: {str(e)[:100]}")
 
             try:
                 # Try sklearn
                 model = mlflow.sklearn.load_model(model_uri)
-                print(f"Loaded sklearn model from {model_path}")
+                print(f"✓ Loaded sklearn model from {model_path}")
                 return model
             except Exception as e:
-                print(f"sklearn loader failed: {e}")
+                print(f"✗ sklearn loader failed: {str(e)[:100]}")
 
             try:
                 # Try pyfunc as universal fallback
                 model = mlflow.pyfunc.load_model(model_uri)
-                print(f"Loaded pyfunc model from {model_path}")
+                print(f"✓ Loaded pyfunc model from {model_path}")
                 return model
             except Exception as e:
-                print(f"pyfunc loader failed: {e}")
+                print(f"✗ pyfunc loader failed: {str(e)[:100]}")
                 return None
 
         except Exception as e:
-            print(f"Error loading model from run: {e}")
+            print(f"✗ Error loading model from run: {e}")
             return None
 
     @staticmethod
