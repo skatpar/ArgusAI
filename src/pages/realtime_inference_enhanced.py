@@ -297,6 +297,11 @@ def show_single_transaction_enhanced():
             if len(st.session_state.api_request_log) > 100:
                 st.session_state.api_request_log = st.session_state.api_request_log[-100:]
 
+            # Debug: Show API result
+            if not result['success']:
+                st.error(f"API call failed: {result.get('error', 'Unknown error')}")
+                st.json(result)
+
             # Parse response to get transaction features
             api_data = result.get('data', {})
             if not isinstance(api_data, dict):
@@ -305,6 +310,12 @@ def show_single_transaction_enhanced():
             if 'data' in api_data and isinstance(api_data['data'], dict):
                 api_data = api_data['data']
 
+            # Debug: Show API data
+            if api_data:
+                st.success(f"✓ API returned data with {len(api_data)} fields")
+            else:
+                st.warning("API returned empty data")
+
             if result['success'] and api_data:
                 # Extract features from API response (excluding transaction_id, fraud_label, etc.)
                 exclude_fields = ['transaction_id', 'fraud_label', 'label', 'fraud', 'fraud_probability',
@@ -312,12 +323,26 @@ def show_single_transaction_enhanced():
 
                 feature_dict = {k: v for k, v in api_data.items() if k not in exclude_fields}
 
+                # Debug: Show what features we extracted
+                st.info(f"Extracted {len(feature_dict)} features from API response")
+
                 # Convert to DataFrame (models expect DataFrame input)
                 X_input = pd.DataFrame([feature_dict])
 
                 # Make prediction with MLflow model
                 with st.spinner("Scoring transaction with MLflow model..."):
-                    fraud_score = MLflowTracker.predict_with_model(model, X_input, return_proba=True)
+                    try:
+                        fraud_score = MLflowTracker.predict_with_model(model, X_input, return_proba=True)
+
+                        if fraud_score is None:
+                            st.error("Model returned None - prediction failed")
+                        elif len(fraud_score) == 0:
+                            st.error("Model returned empty result")
+                        else:
+                            st.success(f"✓ Model prediction successful: {fraud_score}")
+                    except Exception as e:
+                        st.error(f"Error during prediction: {str(e)}")
+                        fraud_score = None
 
                     if fraud_score is not None and len(fraud_score) > 0:
                         fraud_score = float(fraud_score[0])
