@@ -321,6 +321,11 @@ def show_single_transaction_enhanced():
             if not isinstance(api_data, dict):
                 api_data = {}
 
+            # Debug: Show what API returned
+            with st.expander("🔍 Debug: API Response", expanded=False):
+                st.json(result)
+                st.markdown(f"**API Data Keys:** {list(api_data.keys()) if api_data else 'None'}")
+
             if result['success'] and api_data:
                 # Extract fraud score and prediction from API response
                 fraud_probability = api_data.get('fraud_probability')
@@ -330,6 +335,8 @@ def show_single_transaction_enhanced():
                 risk_level = api_data.get('risk_level')
                 actual_fraud_flag = api_data.get('actual_fraud_flag')
                 trans_id = api_data.get('trans_id', transaction_id)
+
+                st.info(f"Extracted fraud_probability: {fraud_probability}, fraud_score_pct: {fraud_score_pct}")
 
                 if fraud_probability is not None:
                     # Convert to percentage if needed
