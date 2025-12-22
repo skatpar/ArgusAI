@@ -280,9 +280,13 @@ def show_single_transaction_enhanced():
             score_button = st.button("Score with MLflow Model", type="primary", use_container_width=True, key="mlflow_score_btn")
 
         if score_button and transaction_id.strip():
-            with st.spinner("Calling API to fetch transaction data..."):
-                # Call API to get transaction data
-                transaction_data = {"transaction_id": transaction_id.strip()}
+            with st.spinner("Calling API to score transaction with MLflow model..."):
+                # Call API with both trans_id and run_id
+                # The API will fetch transaction features and score with the specified MLflow model
+                transaction_data = {
+                    "trans_id": transaction_id.strip(),
+                    "run_id": selected_run_id
+                }
 
             result = call_api_inference(
                 endpoint_url=st.session_state.api_config['endpoint_url'],
@@ -297,155 +301,125 @@ def show_single_transaction_enhanced():
             if len(st.session_state.api_request_log) > 100:
                 st.session_state.api_request_log = st.session_state.api_request_log[-100:]
 
-            # Debug: Show API result
-            if not result['success']:
-                st.error(f"API call failed: {result.get('error', 'Unknown error')}")
-                st.json(result)
-
-            # Parse response to get transaction features
+            # Parse response - API returns prediction results directly
             api_data = result.get('data', {})
             if not isinstance(api_data, dict):
                 api_data = {}
 
-            if 'data' in api_data and isinstance(api_data['data'], dict):
-                api_data = api_data['data']
-
-            # Debug: Show API data
-            if api_data:
-                st.success(f"✓ API returned data with {len(api_data)} fields")
-            else:
-                st.warning("API returned empty data")
-
             if result['success'] and api_data:
-                # Extract features from API response (excluding transaction_id, fraud_label, etc.)
-                exclude_fields = ['transaction_id', 'fraud_label', 'label', 'fraud', 'fraud_probability',
-                                  'fraud_score', 'probability', 'score', 'prediction']
+                # Extract fraud score and prediction from API response
+                fraud_probability = api_data.get('fraud_probability')
+                fraud_score_pct = api_data.get('fraud_score_pct')
+                prediction = api_data.get('prediction')
+                predicted_label = api_data.get('predicted_label')
+                risk_level = api_data.get('risk_level')
+                actual_fraud_flag = api_data.get('actual_fraud_flag')
+                trans_id = api_data.get('trans_id', transaction_id)
 
-                feature_dict = {k: v for k, v in api_data.items() if k not in exclude_fields}
+                if fraud_probability is not None:
+                    # Convert to percentage if needed
+                    if fraud_probability <= 1.0:
+                        score_pct = fraud_probability * 100
+                    else:
+                        score_pct = fraud_score_pct if fraud_score_pct else fraud_probability
 
-                # Debug: Show what features we extracted
-                st.info(f"Extracted {len(feature_dict)} features from API response")
+                    # Display Results
+                    st.markdown("---")
+                    st.markdown("### 🎯 Prediction Results")
 
-                # Convert to DataFrame (models expect DataFrame input)
-                X_input = pd.DataFrame([feature_dict])
+                    # Main metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Status", "SUCCESS")
+                    with col2:
+                        st.metric("Fraud Score", f"{score_pct:.2f}%")
+                    with col3:
+                        st.metric("Model Used", selected_model_name[:30])
+                    with col4:
+                        st.metric("Latency", f"{result.get('latency_ms', 0):.0f}ms")
 
-                # Make prediction with MLflow model
-                with st.spinner("Scoring transaction with MLflow model..."):
-                    try:
-                        fraud_score = MLflowTracker.predict_with_model(model, X_input, return_proba=True)
+                    st.markdown("---")
 
-                        if fraud_score is None:
-                            st.error("Model returned None - prediction failed")
-                        elif len(fraud_score) == 0:
-                            st.error("Model returned empty result")
+                    # Fraud score visualization with gauge
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("##### Fraud Score Gauge")
+
+                        # Determine risk level
+                        if score_pct >= 70:
+                            color = "#dc3545"
+                            risk_level = "HIGH RISK"
+                        elif score_pct >= 40:
+                            color = "#ffc107"
+                            risk_level = "MEDIUM RISK"
                         else:
-                            st.success(f"✓ Model prediction successful: {fraud_score}")
-                    except Exception as e:
-                        st.error(f"Error during prediction: {str(e)}")
-                        fraud_score = None
+                            color = "#28a745"
+                            risk_level = "LOW RISK"
 
-                    if fraud_score is not None and len(fraud_score) > 0:
-                        fraud_score = float(fraud_score[0])
-                        prediction = 1 if fraud_score > 0.5 else 0
-
-                        # Display Results
-                        st.markdown("---")
-                        st.markdown("### 🎯 Prediction Results")
-
-                        # Main metrics
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            st.metric("Status", "SUCCESS")
-                        with col2:
-                            score_pct = fraud_score * 100
-                            st.metric("Fraud Score", f"{score_pct:.2f}%")
-                        with col3:
-                            st.metric("Model Used", selected_model_name[:30])
-                        with col4:
-                            st.metric("Latency", f"{result.get('latency_ms', 0):.0f}ms")
-
-                        st.markdown("---")
-
-                        # Fraud score visualization with gauge
-                        col1, col2 = st.columns(2)
-
-                        with col1:
-                            st.markdown("##### Fraud Score Gauge")
-
-                            # Determine risk level
-                            if score_pct >= 70:
-                                color = "#dc3545"
-                                risk_level = "HIGH RISK"
-                            elif score_pct >= 40:
-                                color = "#ffc107"
-                                risk_level = "MEDIUM RISK"
-                            else:
-                                color = "#28a745"
-                                risk_level = "LOW RISK"
-
-                            # Create gauge chart
-                            fig = go.Figure(go.Indicator(
-                                mode="gauge+number",
-                                value=score_pct,
-                                number={'suffix': "%", 'font': {'size': 40, 'color': color}},
-                                title={'text': "Fraud Probability", 'font': {'size': 16}},
-                                domain={'x': [0, 1], 'y': [0, 1]},
-                                gauge={
-                                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
-                                    'bar': {'color': color, 'thickness': 0.75},
-                                    'bgcolor': "white",
-                                    'borderwidth': 2,
-                                    'bordercolor': "gray",
-                                    'steps': [
-                                        {'range': [0, 40], 'color': "lightgreen"},
-                                        {'range': [40, 70], 'color': "lightyellow"},
-                                        {'range': [70, 100], 'color': "lightcoral"}
-                                    ],
-                                    'threshold': {
-                                        'line': {'color': "red", 'width': 4},
-                                        'thickness': 0.75,
-                                        'value': 70
-                                    }
+                        # Create gauge chart
+                        fig = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=score_pct,
+                            number={'suffix': "%", 'font': {'size': 40, 'color': color}},
+                            title={'text': "Fraud Probability", 'font': {'size': 16}},
+                            domain={'x': [0, 1], 'y': [0, 1]},
+                            gauge={
+                                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkgray"},
+                                'bar': {'color': color, 'thickness': 0.75},
+                                'bgcolor': "white",
+                                'borderwidth': 2,
+                                'bordercolor': "gray",
+                                'steps': [
+                                    {'range': [0, 40], 'color': "lightgreen"},
+                                    {'range': [40, 70], 'color': "lightyellow"},
+                                    {'range': [70, 100], 'color': "lightcoral"}
+                                ],
+                                'threshold': {
+                                    'line': {'color': "red", 'width': 4},
+                                    'thickness': 0.75,
+                                    'value': 70
                                 }
-                            ))
+                            }
+                        ))
 
-                            fig.update_layout(
-                                height=300,
-                                margin=dict(l=20, r=20, t=50, b=20),
-                                paper_bgcolor="white",
-                                font={'color': "darkgray", 'family': "Arial"}
-                            )
-                            # Use unique key based on model and transaction to force re-render
-                            chart_key = f"gauge_mlflow_{selected_model_name}_{transaction_id}"
-                            st.plotly_chart(fig, use_container_width=True, key=chart_key)
+                        fig.update_layout(
+                            height=300,
+                            margin=dict(l=20, r=20, t=50, b=20),
+                            paper_bgcolor="white",
+                            font={'color': "darkgray", 'family': "Arial"}
+                        )
+                        # Use unique key based on model and transaction to force re-render
+                        chart_key = f"gauge_mlflow_{selected_model_name}_{transaction_id}"
+                        st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
-                            st.markdown(f"<h3 style='text-align: center; color: {color};'>{risk_level}</h3>",
-                                       unsafe_allow_html=True)
+                        st.markdown(f"<h3 style='text-align: center; color: {color};'>{risk_level}</h3>",
+                                   unsafe_allow_html=True)
 
-                        with col2:
-                            st.markdown("##### Prediction Details")
+                    with col2:
+                        st.markdown("##### Prediction Details")
 
-                            pred_label = "FRAUD" if prediction == 1 else "LEGITIMATE"
-                            pred_color = "#dc3545" if prediction == 1 else "#28a745"
+                        pred_label = "FRAUD" if prediction == 1 else "LEGITIMATE"
+                        pred_color = "#dc3545" if prediction == 1 else "#28a745"
 
-                            st.markdown(f"""
-                                <div style='padding: 1.5rem; background-color: {pred_color}22;
-                                     border-radius: 8px; border: 2px solid {pred_color}; margin-bottom: 1rem;'>
-                                    <h3 style='margin: 0; color: {pred_color}; text-align: center;'>{pred_label}</h3>
-                                </div>
-                            """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style='padding: 1.5rem; background-color: {pred_color}22;
+                                 border-radius: 8px; border: 2px solid {pred_color}; margin-bottom: 1rem;'>
+                                <h3 style='margin: 0; color: {pred_color}; text-align: center;'>{pred_label}</h3>
+                            </div>
+                        """, unsafe_allow_html=True)
 
-                            st.markdown(f"**Transaction ID:** {transaction_id}")
-                            st.markdown(f"**Fraud Probability:** {score_pct:.2f}%")
-                            st.markdown(f"**Decision Threshold:** 50.0%")
+                        st.markdown(f"**Transaction ID:** {transaction_id}")
+                        st.markdown(f"**Fraud Probability:** {score_pct:.2f}%")
+                        st.markdown(f"**Decision Threshold:** 50.0%")
 
-                            # Risk assessment
-                            if score_pct >= 70:
-                                st.error("⚠️ HIGH RISK - Recommend declining transaction")
-                            elif score_pct >= 40:
-                                st.warning("⚡ MEDIUM RISK - Additional verification recommended")
-                            else:
-                                st.success("✓ LOW RISK - Transaction appears legitimate")
+                        # Risk assessment
+                        if score_pct >= 70:
+                            st.error("⚠️ HIGH RISK - Recommend declining transaction")
+                        elif score_pct >= 40:
+                            st.warning("⚡ MEDIUM RISK - Additional verification recommended")
+                        else:
+                            st.success("✓ LOW RISK - Transaction appears legitimate")
 
                         st.markdown("---")
 
@@ -502,124 +476,24 @@ def show_single_transaction_enhanced():
                                 st.warning("Feature importance not available for this model")
 
                         # Tab 2: SHAP Analysis
-                        # Tab 2: SHAP Analysis
                         with explain_tabs[1]:
-                            st.markdown("Shows how each feature value contributed to **this specific prediction**")
+                            st.markdown("#### SHAP Analysis (SHapley Additive exPlanations)")
+                            st.markdown("Global model interpretability from training data")
 
-                            try:
-                                # Compute SHAP values for this instance
-                                feature_names = X_input.columns.tolist() if hasattr(X_input, 'columns') else None
-
-                                shap_result = MLflowTracker.compute_shap_for_instance(
-                                    model,
-                                    X_input.values,
-                                    feature_names=feature_names
-                                )
-
-                                if shap_result is not None:
-                                    contributions = shap_result['contributions']
-                                    base_value = shap_result['base_value']
-
-                                    st.success("✓ SHAP analysis completed")
-
-                                    # Show base value
-                                    if isinstance(base_value, (list, np.ndarray)):
-                                        base_value = base_value[1] if len(base_value) > 1 else base_value[0]
-
-                                    st.metric("Base Value (Average Model Output)", f"{float(base_value):.4f}")
-
-                                    # Waterfall chart of top contributions
-                                    st.markdown("**Top Feature Contributions to This Prediction:**")
-
-                                    top_contrib = contributions.head(15)
-
-                                    # Create waterfall-style chart
-                                    colors = ['red' if x > 0 else 'green' for x in top_contrib['shap_value']]
-
-                                    fig = go.Figure(go.Bar(
-                                        x=top_contrib['shap_value'],
-                                        y=top_contrib['feature'],
-                                        orientation='h',
-                                        marker=dict(color=colors),
-                                        text=[f"{v:.4f}" for v in top_contrib['shap_value']],
-                                        textposition='outside'
-                                    ))
-
-                                    fig.update_layout(
-                                        title="SHAP Values - Feature Contributions",
-                                        xaxis_title="SHAP Value (Impact on Prediction)",
-                                        yaxis_title="Feature",
-                                        height=500,
-                                        showlegend=False
-                                    )
-
-                                    fig.add_vline(x=0, line_dash="dash", line_color="gray")
-
-                                    st.plotly_chart(fig, use_container_width=True)
-
-                                    # Show detailed table
-                                    st.markdown("**Detailed Contributions:**")
-                                    display_contrib = contributions[['feature', 'value', 'shap_value', 'abs_shap']].copy()
-                                    display_contrib.columns = ['Feature', 'Feature Value', 'SHAP Value', 'Absolute Impact']
-                                    st.dataframe(display_contrib.head(20), use_container_width=True, hide_index=True)
-
-                                    st.info("""
-                                    **How to read SHAP values:**
-                                    - Positive SHAP value (red): Feature pushes prediction towards fraud
-                                    - Negative SHAP value (green): Feature pushes prediction towards legitimate
-                                    - Larger absolute value = stronger influence on prediction
-                                    """)
-                                else:
-                                    st.warning("SHAP analysis not available (requires tree-based model)")
-
-                            except Exception as e:
-                                st.error(f"Error computing SHAP values: {str(e)}")
-                                st.info("SHAP analysis requires the 'shap' library and works best with tree-based models")
-
-                            # Display SHAP plots from MLflow if available
+                            # Display SHAP plots from MLflow artifacts
                             if 'shap_plots' in locals() and shap_plots:
-                                st.markdown("---")
-                                st.markdown("#### 📊 SHAP Summary Plots from Training")
-                                st.markdown("Model-level SHAP analysis from the training dataset")
+                                st.success(f"✓ Displaying {len(shap_plots)} SHAP plots from MLflow")
 
-                                # Create tabs for different SHAP plots
-                                plot_names = list(shap_plots.keys())
-                                if plot_names:
-                                    shap_plot_tabs = st.tabs(plot_names)
-
-                                    for i, plot_name in enumerate(plot_names):
-                                        with shap_plot_tabs[i]:
-                                            plot_path = shap_plots[plot_name]
-                                            try:
-                                                from PIL import Image
-                                                image = Image.open(plot_path)
-                                                st.image(image, use_column_width=True, caption=plot_name)
-
-                                                # Add description based on plot type
-                                                if 'beeswarm' in plot_name.lower():
-                                                    st.info("""
-                                                    **Beeswarm Plot**: Shows the distribution of SHAP values for each feature across all predictions.
-                                                    - Each dot represents a sample
-                                                    - Color indicates feature value (red=high, blue=low)
-                                                    - Position shows SHAP value (impact on prediction)
-                                                    """)
-                                                elif 'bar' in plot_name.lower():
-                                                    st.info("""
-                                                    **Feature Importance Bar**: Shows mean absolute SHAP values for each feature.
-                                                    - Higher bars = more important features globally
-                                                    """)
-                                                elif 'dependence' in plot_name.lower():
-                                                    st.info("""
-                                                    **Dependence Plots**: Show how feature values relate to SHAP values.
-                                                    - Reveals non-linear relationships and interactions
-                                                    """)
-                                                elif 'waterfall' in plot_name.lower():
-                                                    st.info("""
-                                                    **Waterfall Plot**: Shows how features contribute to a specific fraud prediction.
-                                                    - Each bar shows a feature's contribution
-                                                    """)
-                                            except Exception as e:
-                                                st.error(f"Error loading plot: {e}")
+                                for plot_name, plot_image in shap_plots.items():
+                                    st.markdown(f"**{plot_name.replace('_', ' ').title()}**")
+                                    st.image(plot_image, use_column_width=True)
+                                    st.markdown("---")
+                            else:
+                                st.info("SHAP plots not available for this model")
+                                st.markdown("""
+                                    SHAP plots show model interpretability from the training phase.
+                                    To generate SHAP plots, ensure they are logged during model training.
+                                """)
 
                         # Tab 3: Decision Rules
                         # Tab 3: Decision Rules
@@ -728,13 +602,10 @@ def show_single_transaction_enhanced():
                                 st.markdown(f"**Run ID:** `{selected_run_id[:12]}...`")
                                 st.markdown(f"**Experiment:** `{experiment_name}`")
 
-                            # Feature names
-                            if hasattr(X_input, 'columns'):
-                                st.markdown("**Model Features:**")
-                                st.code(", ".join(X_input.columns.tolist()))
-
-                    else:
-                        st.error("Prediction failed. Please check your input and model.")
+                else:
+                    st.error("Prediction failed - no fraud probability returned from API")
+            else:
+                st.error(f"API call failed: {result.get('error', 'Unknown error')}")
 
     else:
         # ===== API-BASED INFERENCE (Original functionality) =====
